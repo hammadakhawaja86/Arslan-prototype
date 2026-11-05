@@ -642,6 +642,8 @@
 .pt-dlg-ic.green { background: rgba(46,125,50,.1); color: var(--success); } .pt-dlg-ic.red { background: rgba(211,47,47,.1); color: var(--error); }
 .pt-dlg h2 { margin: 0; font-size: 20px; font-weight: 700; } .pt-dlg-sub { margin: 0 0 12px; font-size: 14px; color: var(--text-2); }
 .pt-dlg-foot { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 18px; } .pt-dlg-foot .btn { justify-content: center; } .pt-dlg-foot .btn:only-child { grid-column: 1 / -1; }
+/* a third action (Add Medication's Prescribe) gets its own column rather than wrapping */
+.pt-dlg-foot:has(.btn:nth-child(3)) { grid-template-columns: repeat(3, 1fr); }
 .pt-count { margin: 0 12px; }
 .pt-dose { display: grid; grid-template-columns: 1fr 110px; gap: 10px; }
 .pt-del-item { display: flex; gap: 12px; align-items: center; padding: 14px 16px; border: 1px dashed var(--divider); border-radius: 12px; background: var(--grey-50); } .pt-del-item > i { font-size: 30px; color: var(--primary); } .pt-del-item b { display: block; font-size: 14px; } .pt-del-item span { font-size: 12px; color: var(--text-2); }

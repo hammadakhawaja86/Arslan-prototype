@@ -131,8 +131,24 @@
     meds: ['ri-capsule-line', 'Medication', 'Add medication details below', x => F('Medication Name', 'name', x.name, { req: true, ph: 'e.g. Metformin' }) + `<div class="pt-dose">${F('Dosage', 'dose', x.dose, { req: true, type: 'number' })}${S('Unit', 'unit', ['mg', 'mcg', 'ml', 'units'], x.unit || 'mg')}</div><div class="g2">${F('Start Date', 'start', x.start, { req: true, type: 'date' })}${F('End Date', 'end', x.end, { type: 'date' })}</div>` + F('Frequency', 'freq', x.freq, { req: true, ph: 'e.g. Once daily' }) + S('Status', 'status', ['Active', 'Completed', 'Stopped'], x.status || 'Active', { req: true }) + S('Source', 'source', SRC, x.source || 'LeafEase', { req: true }) + S('Added By', 'by', BY, x.by || 'Clinician', { req: true }), ['name', 'dose', 'start', 'freq'], 'Medication'],
     alg: ['ri-virus-line', 'Allergy', 'Add allergy details below', x => F('Allergy Name', 'name', x.name, { req: true, ph: 'e.g. Penicillin' }) + S('Severity', 'severity', ['Low', 'Medium', 'High'], x.severity || 'Low', { req: true }) + F('Reaction', 'reaction', x.reaction, { req: true, area: true, ph: 'What happens when they’re exposed' }) + S('Added By', 'by', BY, x.by || 'Clinician', { req: true }) + S('Source', 'source', SRC, x.source || 'LeafEase', { req: true }), ['name', 'reaction'], 'Allergy']
   };
-  const mhOpen = (k, x) => { const [icon, t, sub, body] = MH[k]; App.dialog(modal(icon, `${x.id ? 'Edit' : 'Add'} ${t}`, x.id ? `Update ${esc(x.name)}` : sub, body(x), `<button class="btn outlined lg" data-act="close-modal">Cancel</button><button class="btn primary lg" data-act="mh-save" data-k="${k}" data-id="${x.id || ''}">${x.id ? 'Save changes' : 'Add ' + MH[k][5]}</button>`, 'green'), { width: 480 }); };
+  /* Adding a medicine records what the patient takes; prescribing it is the
+     practice issuing it. Only the medication form offers both, and only when
+     creating — editing an existing row is just an edit. */
+  const mhOpen = (k, x) => { const [icon, t, sub, body] = MH[k];
+    const prescribe = k === 'meds' && !x.id ? `<button class="btn outlined lg" data-act="mh-prescribe"><i class="ri-capsule-line"></i>Prescribe</button>` : '';
+    App.dialog(modal(icon, `${x.id ? 'Edit' : 'Add'} ${t}`, x.id ? `Update ${esc(x.name)}` : sub, body(x), `<button class="btn outlined lg" data-act="close-modal">Cancel</button>${prescribe}<button class="btn primary lg" data-act="mh-save" data-k="${k}" data-id="${x.id || ''}">${x.id ? 'Save changes' : 'Add ' + MH[k][5]}</button>`, 'green'), { width: prescribe ? 540 : 480 }); };
   acts['mh-add'] = el => mhOpen(el.dataset.k, {});
+  /* Prescribe: the same details, but issued by this practice rather than just
+     noted down — so the source and prescriber are this clinic, not a free
+     choice, and the row says the practice prescribed it. */
+  acts['mh-prescribe'] = () => { const d = formData(); if (!needs(d, MH.meds[4])) return;
+    if (d.end && d.start && d.end < d.start) { App.$('#pt-form [name=end]').closest('.field').classList.add('err'); App.snack('End date must be after the start date.', 'error'); return; }
+    const biz = App.biz ? App.biz().name : 'LeafEase', me = App.me().name;
+    rec(cur()).meds.unshift({ id: uid(), ...d, dose: +d.dose, source: biz, by: 'Clinician',
+      ext: true, prescriber: me, org: biz, verify: 'Verified against a document', prescribed: true });
+    rec(cur()).f.medView = d.status === 'Active' ? 'Active' : 'Historical';
+    App.closeModal(); App.render();
+    App.snack(`${d.name} prescribed\nIssued by ${me} at ${biz} and added to this patient’s medications.`); };
   acts['mh-edit'] = el => mhOpen(el.dataset.k, rec(cur())[el.dataset.k].find(x => x.id === el.dataset.id));
   acts['mh-save'] = el => { const k = el.dataset.k, d = formData(); if (!needs(d, MH[k][4])) return; const list = rec(cur())[k];
     if (d.end && d.start && d.end < d.start) { App.$('#pt-form [name=end]').closest('.field').classList.add('err'); App.snack('End date must be after the start date.', 'error'); return; }
