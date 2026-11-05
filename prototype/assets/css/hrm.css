@@ -1103,6 +1103,14 @@ tr.fw-off td { color: var(--text-2); }
 .rx-paybox { border: 1px solid var(--field); border-radius: 12px; padding: 14px; }
 .rx-lockcap { margin: -6px 0 0 12px; }
 .rx-hint { margin: -8px 0 0 12px; }
+/* Medications: fixed columns, so the gaps come from a set rhythm rather than
+   from how long each cell's text happens to be */
+.mh-meds table.dt { table-layout: fixed; }
+.mh-meds .dt th:nth-child(1), .mh-meds .dt td:nth-child(1) { width: 24%; }
+.mh-meds .dt th:nth-child(2), .mh-meds .dt td:nth-child(2) { width: 13%; }
+/* Status through Action share one width, so the gaps read as a single rhythm */
+.mh-meds .dt th:nth-child(n+3), .mh-meds .dt td:nth-child(n+3) { width: 10.5%; }
+.mh-meds .dt td:nth-child(8) .caption { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
 .rx-facts { display: flex; flex-direction: column; gap: 7px; font-size: 14px; color: var(--text-2); }
 .rx-facts b { color: var(--text); font-weight: 600; }
 /* an unticked declaration, flagged the way a required field is */
