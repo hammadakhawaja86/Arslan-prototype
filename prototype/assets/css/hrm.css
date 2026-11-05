@@ -1092,6 +1092,11 @@ tr.fw-off td { color: var(--text-2); }
 .pa-chip.pa-act.red:hover { background: rgba(211, 47, 47, .08); }
 .pa-chip.pa-act:active { transform: translateY(1px); }
 .pa-chip.pa-act:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+/* a recorded external prescription: provenance tags under the medicine name */
+.mh-rxtags { margin-top: 4px; flex-wrap: wrap; }
+.dt td .cell2 .mh-rxtags .chip { align-self: auto; }
+/* an unticked declaration, flagged the way a required field is */
+.cbx.err { color: var(--error); } .cbx.err input { outline: 2px solid var(--error); outline-offset: 2px; border-radius: 4px; }
 .pa-filters { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; } .pa-filters .field.search { flex: 0 1 400px; min-width: 220px; }
 .pa-card .pa-title { all: unset; cursor: pointer; font-size: 15px; font-weight: 600; } .pa-card .pa-title:hover { color: var(--primary); } .pa-card .pa-title:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; border-radius: 4px; }
 .pt-date.green { background: #EAF5EA; } .pt-date.green small:first-child { color: #2E7D32; } .pt-date.orange { background: #FFF4E8; } .pt-date.purple { background: #F4ECF8; } .pt-date.purple small:first-child { color: #7B3FA0; }

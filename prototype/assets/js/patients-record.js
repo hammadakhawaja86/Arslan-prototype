@@ -114,14 +114,14 @@
 
   /* ---------- Medical History ---------- */
   const editable = x => x.by !== 'GP';
-  const rowAct = (kind, x) => editable(x) ? `<span class="row-actions"><button class="icon-btn s20" data-act="mh-edit" data-k="${kind}" data-id="${x.id}" aria-label="Edit ${esc(x.name)}" title="Edit"><i class="ri-edit-box-line"></i></button><button class="icon-btn s20 danger" data-act="mh-del" data-k="${kind}" data-id="${x.id}" aria-label="Delete ${esc(x.name)}" title="Delete"><i class="ri-delete-bin-6-line"></i></button></span>` : `<span class="caption" title="Imported from the GP record — read only"><i class="ri-lock-line"></i> GP record</span>`;
+  const rowAct = (kind, x) => editable(x) ? `<span class="row-actions"><button class="icon-btn s20" data-act="${x.ext ? 'rx-edit' : 'mh-edit'}" data-k="${kind}" data-id="${x.id}" aria-label="Edit ${esc(x.name)}" title="Edit"><i class="ri-edit-box-line"></i></button><button class="icon-btn s20 danger" data-act="mh-del" data-k="${kind}" data-id="${x.id}" aria-label="Delete ${esc(x.name)}" title="Delete"><i class="ri-delete-bin-6-line"></i></button></span>` : `<span class="caption" title="Imported from the GP record — read only"><i class="ri-lock-line"></i> GP record</span>`;
   const stChip = s => s === 'Active' ? chip('Active', 't-green', 'ri-checkbox-circle-line') : chip(s, 't-grey', 'ri-history-line');
   const sevChip = s => chip(s, s === 'High' ? 't-red' : s === 'Medium' ? 't-orange' : 't-grey');
   const box = (k, icon, t, actions, body, r) => `<section class="card pt-box"><div class="pt-box-h"><h2 class="pt-h"><i class="${icon}"></i>${t}</h2><span class="grow"></span>${actions}<button class="icon-btn s20" data-act="mh-tog" data-k="${k}" aria-expanded="${r.f.mhOpen[k]}" aria-label="${r.f.mhOpen[k] ? 'Collapse' : 'Expand'} ${t}"><i class="${r.f.mhOpen[k] ? 'ri-arrow-up-s-line' : 'ri-arrow-down-s-line'}"></i></button></div>${r.f.mhOpen[k] ? `<div class="pt-box-b">${body}</div>` : ''}</section>`;
   PT.tabs['medical-history'] = p => { const r = rec(p); const meds = r.meds.filter(m => r.f.medView === 'Active' ? m.status === 'Active' : m.status !== 'Active');
     return title('Medical History') + `<div class="stack g16">
       ${box('c', 'ri-heart-pulse-line', `Medical Conditions (${r.cond.filter(c => c.status === 'Active').length} Active)`, `<button class="btn primary" data-act="mh-add" data-k="cond"><i class="ri-add-circle-line"></i>Add Medical Condition</button>`, table(['Condition', 'Description', 'Status', 'Source', 'Added By', 'Action'], r.cond.map(c => `<tr><td><b class="fw5">${esc(c.name)}</b></td><td>${esc(c.desc)}</td><td>${stChip(c.status)}</td><td>${esc(c.source)}</td><td>${esc(c.by)}</td><td>${rowAct('cond', c)}</td></tr>`), 6, 'No medical conditions recorded.'), r)}
-      ${box('m', 'ri-capsule-line', 'Medications', `${seg('mh-medview', [['Active', 'Active'], ['Historical', 'Historical']], r.f.medView)}<button class="btn primary" data-act="mh-add" data-k="meds"><i class="ri-add-circle-line"></i>Add Medication</button>`, table(['Medication', 'Dosage', 'Frequency', 'Status', 'Start Date', 'End Date', 'Source', 'Added By', 'Action'], meds.map(m => `<tr><td><b class="fw5">${esc(m.name)}</b></td><td>${m.dose} ${m.unit}</td><td>${esc(m.freq)}</td><td>${stChip(m.status)}</td><td>${PT.dmy(m.start)}</td><td>${m.end ? PT.dmy(m.end) : '—'}</td><td>${esc(m.source)}</td><td>${esc(m.by)}</td><td>${rowAct('meds', m)}</td></tr>`), 9, r.f.medView === 'Active' ? 'No active medications.' : 'No past medications.'), r)}
+      ${box('m', 'ri-capsule-line', 'Medications', `${seg('mh-medview', [['Active', 'Active'], ['Historical', 'Historical']], r.f.medView)}<button class="btn outlined" data-act="mh-rx"><i class="ri-capsule-line"></i>Add Prescription</button><button class="btn primary" data-act="mh-add" data-k="meds"><i class="ri-add-circle-line"></i>Add Medication</button>`, table(['Medication', 'Dosage', 'Frequency', 'Status', 'Start Date', 'End Date', 'Source', 'Added By', 'Action'], meds.map(m => `<tr><td><span class="cell2"><b class="fw5">${esc(m.name)}</b>${m.ext ? `<small>Prescribed by ${esc(m.prescriber)} · ${esc(m.org)}</small><span class="row g4 mh-rxtags">${/^Patient/.test(m.verify || '') ? chip('Unverified', 't-orange', 'ri-error-warning-line') : chip('Verified', 't-green', 'ri-verified-badge-line')}${m.cd ? chip('Controlled drug', 't-red', 'ri-shield-keyhole-line') : ''}</span>` : ''}</span></td><td>${m.dose} ${m.unit}</td><td>${esc(m.freq)}</td><td>${stChip(m.status)}</td><td>${PT.dmy(m.start)}</td><td>${m.end ? PT.dmy(m.end) : '—'}</td><td>${esc(m.source)}</td><td>${esc(m.by)}</td><td>${rowAct('meds', m)}</td></tr>`), 9, r.f.medView === 'Active' ? 'No active medications.' : 'No past medications.'), r)}
       ${box('a', 'ri-virus-line', 'Allergies', `<button class="btn primary" data-act="mh-add" data-k="alg"><i class="ri-add-circle-line"></i>Add New Allergy</button>`, table(['Allergy', 'Severity', 'Reaction', 'Source', 'Added By', 'Action'], r.alg.map(a => `<tr><td><b class="fw5">${esc(a.name)}</b></td><td>${sevChip(a.severity)}</td><td>${esc(a.reaction)}</td><td>${esc(a.source)}</td><td>${esc(a.by)}</td><td>${rowAct('alg', a)}</td></tr>`), 6, 'No known allergies recorded.'), r)}</div>`; };
   acts['mh-tog'] = el => { const f = rec(cur()).f.mhOpen; f[el.dataset.k] = !f[el.dataset.k]; App.render(); };
   acts['mh-medview'] = el => { rec(cur()).f.medView = el.dataset.v; App.render(); };
@@ -141,6 +141,53 @@
   acts['mh-del'] = el => { const k = el.dataset.k, x = rec(cur())[k].find(i => i.id === el.dataset.id);
     confirmDel('Delete medical history', 'Are you sure you want to delete the following entry?', 'ri-file-text-line', x.name, esc(x.desc || x.reaction || `${x.dose} ${x.unit} · ${x.freq}`), 'mh-del-go', k + ':' + x.id, 'entry'); };
   acts['mh-del-go'] = el => { const [k, id] = el.dataset.id.split(':'); const list = rec(cur())[k]; const i = list.findIndex(x => x.id === id); const [x] = list.splice(i, 1); App.closeModal(); App.render(); App.snack(`${x.name} deleted.`, 'success', { label: 'Undo', fn: () => { list.splice(i, 0, x); App.render(); } }); };
+
+  /* ---------- Record an existing prescription (medicines reconciliation) ----------
+     A medicine prescribed somewhere else that is missing from this record. It is
+     recorded, never issued: the clinic is not the prescriber, so the form captures
+     who prescribed it, where that information came from and whether anyone has
+     checked it against a document. */
+  const RX_INFO = ['Patient reported', 'GP record or summary', 'Hospital discharge letter', 'Repeat prescription slip', 'Pharmacy record', 'Other'];
+  const RX_ROUTE = ['Oral', 'Topical', 'Subcutaneous', 'Intramuscular', 'Inhaled', 'Other'];
+  const RX_VERIFY = ['Patient reported — not yet verified', 'Verified against a document'];
+  let rxFile = null;
+  const rxBody = (x, r) => `<div class="pt-note warn"><i class="ri-information-line"></i><span><b>Recording only.</b> This adds a medicine the patient is already taking. It does not issue a prescription and nothing is sent to a pharmacy.</span></div>
+    ${r.alg.length ? `<div class="pt-warn"><i class="ri-alert-line"></i><span><b>Check against recorded allergies</b>${r.alg.map(a => `${esc(a.name)} (${a.severity.toLowerCase()})`).join(' · ')}</span></div>` : ''}
+    <b class="sub2">Medicine</b>
+    ${F('Medicine name', 'name', x.name, { req: true, ph: 'e.g. Atorvastatin 20mg tablets' })}
+    <div class="pt-dose">${F('Dosage', 'dose', x.dose, { req: true, type: 'number' })}${S('Unit', 'unit', ['mg', 'mcg', 'ml', 'units'], x.unit || 'mg')}</div>
+    <div class="g2">${F('Frequency', 'freq', x.freq, { req: true, ph: 'e.g. Once daily' })}${S('Route', 'route', RX_ROUTE, x.route || 'Oral')}</div>
+    ${F('Indication (optional)', 'indication', x.indication, { ph: 'What the medicine is being taken for' })}
+    <b class="sub2">Where it was prescribed</b>
+    <div class="g2">${F('Prescriber', 'prescriber', x.prescriber, { req: true, ph: 'e.g. Dr A Rahman' })}${F('Organisation', 'org', x.org, { req: true, ph: 'e.g. Northside Medical Practice' })}</div>
+    ${S('Where this information came from', 'infoSrc', RX_INFO, x.infoSrc || '', { req: true, ph: 'Choose a source' })}
+    <div class="g2">${F('Original start date', 'start', x.start, { req: true, type: 'date' })}${F('End date (optional)', 'end', x.end, { type: 'date' })}</div>
+    ${S('Status', 'status', ['Active', 'Completed', 'Stopped'], x.status || 'Active', { req: true })}
+    <b class="sub2">Verification</b>
+    ${S('Verification', 'verify', RX_VERIFY, x.verify || RX_VERIFY[0], { req: true })}
+    <label class="dropzone pt-drop ${rxFile ? 'has' : ''}" id="rx-drop"><input type="file" accept=".jpg,.jpeg,.png,.pdf" data-ch="rx-file" hidden><i class="ri-upload-cloud-2-line"></i><b>${rxFile ? esc(rxFile) : 'Attach evidence (optional)'}</b><span class="caption">Repeat slip, GP letter or discharge summary — JPEG, PNG or PDF</span><span class="btn outlined sm pt-dark">Browse File</span></label>
+    <label class="cbx" id="rx-cd"><input type="checkbox" name="cd" ${x.cd ? 'checked' : ''}>This is a controlled drug</label>
+    ${F('Notes (optional)', 'notes', x.notes, { area: true, rows: 3, ph: 'Anything else worth recording about this prescription' })}
+    <label class="cbx" id="rx-attest"><input type="checkbox" name="attest" ${x.id ? 'checked' : ''}>I confirm this medicine was prescribed by another provider and I have recorded it from the source above.</label>`;
+  const rxOpen = (x = {}) => { const r = rec(cur()); rxFile = x.evidence || null;
+    App.dialog(modal('ri-capsule-line', x.id ? 'Edit recorded prescription' : 'Record existing prescription', x.id ? `Update ${esc(x.name)}` : 'Add a medicine this patient is already taking that is not in their record yet.', rxBody(x, r), `<button class="btn outlined lg" data-act="close-modal">Cancel</button><button class="btn primary lg" data-act="rx-save" data-id="${x.id || ''}">${x.id ? 'Save changes' : 'Record prescription'}</button>`, 'green'), { width: 560 }); };
+  acts['mh-rx'] = () => rxOpen({});
+  acts['rx-edit'] = el => rxOpen(rec(cur()).meds.find(m => m.id === el.dataset.id));
+  chs['rx-file'] = el => { const f = el.files[0]; if (!f) return;
+    if (f.size > 10 * 1024 * 1024) { App.snack('That file is over 10 MB. Choose a smaller file.', 'error'); return; }
+    rxFile = f.name; const z = App.$('#rx-drop'); z.classList.add('has'); z.querySelector('b').textContent = f.name; z.querySelector('.caption').textContent = `${(f.size / 1024).toFixed(0)} KB · attached as evidence`; };
+  acts['rx-save'] = el => { const d = formData(); if (!needs(d, ['name', 'dose', 'freq', 'prescriber', 'org', 'infoSrc', 'start'])) return;
+    if (d.end && d.start && d.end < d.start) { App.$('#pt-form [name=end]').closest('.field').classList.add('err'); App.snack('The end date must be after the start date.', 'error'); return; }
+    const attest = App.$('#rx-attest'); attest.classList.toggle('err', !d.attest);
+    if (!d.attest) { App.snack('Confirm the declaration before recording this prescription.', 'error'); return; }
+    const list = rec(cur()).meds, x = list.find(i => i.id === el.dataset.id);
+    const entry = { ...d, dose: +d.dose, cd: !!d.cd, ext: true, source: 'External', by: 'Clinician', evidence: rxFile || '',
+      recordedAt: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }), recordedBy: 'Muhammad Arslan' };
+    delete entry.attest;
+    if (x) Object.assign(x, entry); else list.unshift({ id: uid(), ...entry });
+    rec(cur()).f.medView = d.status === 'Active' ? 'Active' : 'Historical';
+    App.closeModal(); App.render();
+    App.snack(x ? `${d.name} updated.` : `${d.name} recorded\nAdded to this patient’s medications as an external prescription — not issued by this clinic.`); };
 
   /* ---------- Documents ---------- */
   const CATS = ['Blood Reports', 'Documents', 'Review Forms', 'Questionnaires', 'Consent Forms'];
