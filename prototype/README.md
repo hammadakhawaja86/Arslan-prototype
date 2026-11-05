@@ -15,7 +15,7 @@ The "Interface" switch (bottom right, vertical pages) flips between the Classic 
 - `index.html` — the app; every screen is a route inside it (e.g. `index.html#/private`)
 - `assets/css/` — app styles plus local copies of the Poppins and Remix Icon fonts' stylesheets
 - `assets/fonts/` — Poppins (SIL OFL) and Remix Icon (Apache 2.0) font files
-- `assets/js/` — app scripts, loaded in the order listed in `index.html`
+- `assets/js/` — app scripts, loaded in the order of the `JS` list near the top of `index.html`. Adding a script means adding its name to that list; there are no separate `<script>` tags. Over http each file is fetched with a fresh stamp, so a reload always gets the current version and never a cached one.
 - `images/` — business logo sprite and account avatar
 
 There is no `inner-pages/` folder: the prototype is a single-page app, so all screens live in `index.html`.

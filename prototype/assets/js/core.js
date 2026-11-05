@@ -187,10 +187,32 @@
 
   /* ---------- routing ---------- */
   App.route = (pattern, fn, meta) => App.routes.push({ re: new RegExp('^' + pattern.replace(/:(\w+)/g, '([^/]+)') + '$'), fn, meta });
+  /* Which of the app's scripts never ran. Every file registers at least one
+     action, change handler or route, so one that registered nothing did not
+     load — nearly always a stale or failed fetch of that one file. */
+  App.missingScripts = () => { const js = window.__APP_JS__ || []; const seen = new Set();
+    App.routes.forEach(r => seen.add(r.meta && r.meta.key));
+    return js.filter(n => !(window.__LOADED__ || {})[n]); };
+  App.lost = path => { const miss = App.missingScripts();
+    document.title = 'Page did not load · LeafEase';
+    const el = App.$('#app') || document.body;
+    el.innerHTML = `<section class="soon" style="max-width:620px;margin:0 auto;padding:64px 24px;text-align:center">
+      <span class="soon-icon" style="background:rgba(239,108,0,.08);color:var(--warning);box-shadow:0 0 0 10px rgba(239,108,0,.04)"><i class="ri-refresh-line"></i></span>
+      <h1 class="soon-h1">This page didn’t load</h1>
+      <p class="soon-p">The app couldn’t find <b>${App.esc(path)}</b>. That normally means the browser served an out-of-date copy of one of its files, so the screen was never registered. Reloading fetches a fresh copy and fixes it.</p>
+      ${miss.length ? `<p class="caption">Didn’t load: ${miss.map(App.esc).join(', ')}</p>` : ''}
+      <div class="row g12 wrap" style="justify-content:center;margin-top:8px">
+        <button class="btn primary lg" onclick="location.reload()"><i class="ri-refresh-line"></i>Reload the page</button>
+        <button class="btn outlined lg" onclick="location.hash='#/dashboard'"><i class="ri-dashboard-line"></i>Go to dashboard</button>
+      </div></section>`; };
   App.render = () => {
     App.closeMenu();
     const path = (location.hash || '#/dashboard').slice(1).split('?')[0];
-    const r = App.routes.find(r => r.re.test(path)) || App.routes[0];
+    /* No match used to fall through to App.routes[0] — the Inbox — so a script
+       that failed to load silently showed the wrong page instead of saying so.
+       An unmatched path now says what happened and offers the one fix. */
+    const r = App.routes.find(r => r.re.test(path));
+    if (!r) return App.lost(path);
     const args = (path.match(r.re) || []).slice(1);
     const meta = typeof r.meta === 'function' ? r.meta(...args) : r.meta;
     if (!App.role && !meta.public) { location.replace('#/login'); return; }
