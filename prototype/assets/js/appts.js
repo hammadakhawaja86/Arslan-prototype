@@ -350,28 +350,41 @@
     rxPayModal(A[el.dataset.id], rx, el.dataset.ai, 'link'); };
 
   /* ---------- Prescription payment — the appointment reserve flow, for medicines ---------- */
+  /* Mirrors the Reserve Appointment flow: a payment link holds the thing and
+     waits, while cash and a bank transfer are money already in hand — so those
+     two take the details of a payment that has happened, mark it received
+     immediately, and send no link. The amount is locked to the price in both. */
+  const TAKEN = 'Payment will be marked as received immediately. The prescription is released to the dispenser straight away, no payment link is sent and no hold applies.';
+  const locked = price => `${App.field('Amount Received', `<input value="£${Number(price).toFixed(2)}" readonly tabindex="-1"><span class="adorn"><i class="ri-lock-line"></i></span>`, { cls: 'dis' })}<span class="caption rx-lockcap">Fixed to the prescription price, not editable here</span>`;
   const PAY = {
-    link: ['Payment Link', ['The patient receives an email with a secure payment link. Once payment is completed, the prescription is released to the dispenser automatically.', 'The prescription is held for 24 hours. If payment is not received in that time, it returns to the clinician for review.'], 'Send Payment Link', 'Awaiting Payment', 't-orange', 'ri-time-line'],
-    cash: ['Cash', ['Payment is taken at the practice and recorded against this prescription. Mark it as paid only once the money has been handed over.', 'The prescription is released to the dispenser straight away and a receipt is emailed to the patient.'], 'Record Cash Payment', 'Paid', 't-green', 'ri-checkbox-circle-line'],
-    bank: ['Bank Transfer', ['The patient receives the practice bank details by email, with this prescription as the reference. It is released once the transfer is reconciled.', 'The prescription is held for 24 hours. If the transfer is not seen in that time, it returns to the clinician for review.'], 'Send Bank Details', 'Awaiting Payment', 't-orange', 'ri-time-line']
+    link: { t: 'Payment Link', cta: 'Send Payment Link', status: 'Awaiting Payment', need: [],
+      body: () => `<div class="ap-sub stack g8"><span class="body2">The patient will receive an email containing a secure payment link. Once payment is completed, the prescription will be automatically released to the dispenser.</span><span class="body2">The prescription will be held for 24 hours. If payment is not received within this period, the hold will expire and it will return to the clinician for review.</span></div>` },
+    cash: { t: 'Cash', cta: 'Confirm &amp; Record Cash Payment', status: 'Paid', need: [],
+      body: rx => `<div class="rx-paybox stack g12">${locked(rx.price)}${PT.F('Receipt No. (optional)', 'receipt', rx.receipt, { ph: 'Receipt No. (optional)' })}${PT.S('Received By', 'receivedBy', STAFF.map(s => s[1]), rx.receivedBy || 'Muhammad Arslan')}<div class="pt-note"><i class="ri-information-line"></i><span>${TAKEN}</span></div></div>` },
+    bank: { t: 'Bank Transfer', cta: 'Confirm &amp; Record Bank Transfer', status: 'Paid', need: ['transferDate', 'txnRef'],
+      body: rx => `<div class="rx-paybox stack g12">${locked(rx.price)}${PT.F('Transfer Date', 'transferDate', rx.transferDate, { req: true, type: 'date' })}${PT.F('Transaction Reference', 'txnRef', rx.txnRef, { req: true, ph: 'Transaction Reference' })}<div class="pt-note"><i class="ri-information-line"></i><span>${TAKEN}</span></div></div>` }
   };
   let rxPend = null;
-  const rxPayModal = (a, rx, ai, method) => { rxPend = { a, rx, ai }; const [, lines, cta] = PAY[method]; const p = a.pid ? PT.pat(a.pid) : null;
+  const rxPayModal = (a, rx, ai, method) => { rxPend = { a, rx, ai, method }; const P = PAY[method]; const p = a.pid ? PT.pat(a.pid) : null;
     const dur = rx.ongoing ? `Ongoing, from ${PT.dmy(rx.start)}` : `${PT.dmy(rx.start)} to ${PT.dmy(rx.end)}`;
-    App.dialog(PT.modal('ri-error-warning-line', 'Prescription Payment', 'You are about to send this prescription for the patient.', `<b class="sub2">How will this be paid?</b>
-      <div class="pt-seg" role="tablist" aria-label="Payment method">${Object.entries(PAY).map(([k, [t]]) => `<button type="button" role="tab" aria-selected="${k === method}" class="${k === method ? 'on' : ''}" data-act="rx-pay-m" data-v="${k}">${t}</button>`).join('')}</div>
-      <div class="ap-sub stack g8">${lines.map(l => `<span class="body2">${l}</span>`).join('')}</div>
-      <dl class="pt-kv">${[['Patient', a.pname || (p ? PT.name(p) : '—')], ['Prescriber', staff(a.sid)[1]], ['Dispensing route', RXROUTE[rx.route][0]], ['Medication', rx.name], ['Dosage', `${rx.dose} ${rx.unit} · every ${rx.freq} ${String(rx.funit).toLowerCase()}`], ['Duration', dur], ['Price', '£' + Number(rx.price).toFixed(2)]].map(([k, x]) => `<div><dt>${k}</dt><dd>${esc(x)}</dd></div>`).join('')}</dl>`,
-      `<button class="btn outlined lg" data-act="close-modal">Cancel</button><button class="btn primary lg" data-act="rx-pay-go" data-m="${method}">${cta}</button>`), { width: 540 }); };
-  acts['rx-pay-m'] = el => rxPayModal(rxPend.a, rxPend.rx, rxPend.ai, el.dataset.v);
-  acts['rx-pay-go'] = el => { const m = el.dataset.m, [label, , , status] = PAY[m]; const { a, rx, ai } = rxPend;
-    rxSend(a, { ...rx, status, pay: label }, ai, m); };
+    App.dialog(PT.modal('ri-error-warning-line', 'Send Prescription', 'You are about to send this prescription for the patient.', `<b class="sub2">How will this be paid?</b>
+      <div class="pt-seg" role="tablist" aria-label="Payment method">${Object.entries(PAY).map(([k, v]) => `<button type="button" role="tab" aria-selected="${k === method}" class="${k === method ? 'on' : ''}" data-act="rx-pay-m" data-v="${k}">${v.t}</button>`).join('')}</div>
+      ${P.body(rx)}
+      <div class="rx-facts">${[['Patient', a.pname || (p ? PT.name(p) : '—')], ['Prescriber', staff(a.sid)[1]], ['Route', RXROUTE[rx.route][0]], ['Medication', rx.name], ['Dosage', `${rx.dose} ${rx.unit} · every ${rx.freq} ${String(rx.funit).toLowerCase()}`], ['Duration', dur], ['Price', '£' + Number(rx.price).toFixed(2)]].map(([k, x]) => `<div><b>${k}:</b> ${esc(x)}</div>`).join('')}</div>`,
+      `<button class="btn outlined lg" data-act="close-modal">Cancel</button><button class="btn primary lg" data-act="rx-pay-go" data-m="${method}">${P.cta}</button>`), { width: 540 }); };
+  /* keep what has been entered when flipping between methods */
+  acts['rx-pay-m'] = el => { const d = PT.formData(); rxPend.rx = { ...rxPend.rx, ...d }; rxPayModal(rxPend.a, rxPend.rx, rxPend.ai, el.dataset.v); };
+  acts['rx-pay-go'] = el => { const m = el.dataset.m, P = PAY[m]; const d = PT.formData();
+    if (P.need.length && !PT.needs(d, P.need)) return;
+    const { a, rx, ai } = rxPend;
+    rxSend(a, { ...rx, ...d, status: P.status, pay: P.t }, ai, m); };
   const rxSend = (a, rx, ai, m) => { a.rx.push(rx); if (ai) (a.ai = a.ai || {}).glp = true; rxPend = null; rxDraft = {};
     App.closeModal(); cv.tab = 'rx'; keep();
+    const amt = rx.price ? '£' + Number(rx.price).toFixed(2) : '';
     const msg = !rx.pay ? `${rx.name} sent to Signature Rx\nThe patient pays the pharmacy when it is dispensed.`
-      : m === 'cash' ? `${rx.name} recorded as paid\nCash taken at the practice · £${Number(rx.price).toFixed(2)} · released to ${RXROUTE[rx.route][0]}.`
-      : m === 'bank' ? `${rx.name} awaiting bank transfer\nBank details emailed to the patient · £${Number(rx.price).toFixed(2)}.`
-      : `${rx.name} awaiting payment\nA secure payment link has been emailed to the patient · £${Number(rx.price).toFixed(2)}.`;
+      : m === 'cash' ? `${rx.name} recorded as paid\nCash received ${amt}${rx.receipt ? ` · receipt ${rx.receipt}` : ''} · released to ${RXROUTE[rx.route][0]}.`
+      : m === 'bank' ? `${rx.name} recorded as paid\nBank transfer ${amt} · ref ${rx.txnRef} · released to ${RXROUTE[rx.route][0]}.`
+      : `${rx.name} awaiting payment\nA secure payment link has been emailed to the patient · ${amt}. Held for 24 hours.`;
     App.snack(msg); };
   acts['apc-fu'] = el => { const a = A[el.dataset.id]; bookModal({ pid: a.pid || 'p1', service: 'Follow-up Consultation', staff: a.sid, date: add(TODAY, 7), follow: a }); };
   const docModal = (a, type = '', title = '', desc = '', ai = '') => { const body = t => `${App.field('Request Type', `<select name="type" data-ch="doc-type">${['Blood Test Results', 'Consent Form', 'Photo ID', 'GP Letter', 'Other'].map(x => `<option ${x === t ? 'selected' : ''}>${x}</option>`).join('')}</select>`, { req: true, cls: 'select' })}<b class="sub2">Request Details</b>${PT.F('Request Title', 'title', title, { req: true, ph: 'e.g. Upload recent blood test results' })}${PT.F('Description / Instructions', 'desc', desc, { req: true, area: true, ph: 'State reason here…' })}<div class="stack g4">${PT.F('Due Date', 'due', add(TODAY, 7), { type: 'date' })}<span class="caption" style="margin:0 12px">Leave empty if no deadline is needed.</span></div>${PT.F('Additional Details (Optional)', 'more', '', { area: true, ph: 'Describe what documents you need and why…' })}
