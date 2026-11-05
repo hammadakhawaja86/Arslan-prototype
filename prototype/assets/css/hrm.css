@@ -1095,6 +1095,9 @@ tr.fw-off td { color: var(--text-2); }
 /* a recorded external prescription: provenance tags under the medicine name */
 .mh-rxtags { margin-top: 4px; flex-wrap: wrap; }
 .dt td .cell2 .mh-rxtags .chip { align-self: auto; }
+/* dispensing route: three options need more room than the two-up segmented default */
+.pt-seg.ap-rxroute { flex-wrap: wrap; } .pt-seg.ap-rxroute button { flex: 1 1 auto; gap: 6px; }
+.ap-rxtags { margin-top: 8px; }
 /* an unticked declaration, flagged the way a required field is */
 .cbx.err { color: var(--error); } .cbx.err input { outline: 2px solid var(--error); outline-offset: 2px; border-radius: 4px; }
 .pa-filters { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; } .pa-filters .field.search { flex: 0 1 400px; min-width: 220px; }
