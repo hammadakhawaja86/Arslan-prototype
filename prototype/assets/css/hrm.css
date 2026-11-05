@@ -1113,6 +1113,21 @@ tr.fw-off td { color: var(--text-2); }
 /* Status through Action share one width, so the gaps read as a single rhythm */
 .mh-meds .dt th:nth-child(n+3), .mh-meds .dt td:nth-child(n+3) { width: 10.5%; }
 .mh-meds .dt td:nth-child(8) .caption { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+/* Below this the sidebar leaves the table too little room to hold a set rhythm,
+   so the columns go back to sizing themselves. */
+@media (min-width: 1100px) {
+  /* Conditions and Allergies share one rhythm, so Source, Added By and Action line up between the two tables */
+  .mh-cond table.dt, .mh-alg table.dt { table-layout: fixed; }
+  .mh-cond .dt th:nth-child(1), .mh-cond .dt td:nth-child(1),
+  .mh-alg .dt th:nth-child(1), .mh-alg .dt td:nth-child(1) { width: 18%; }
+  .mh-cond .dt th:nth-child(2), .mh-cond .dt td:nth-child(2) { width: 30%; }
+  .mh-cond .dt th:nth-child(3), .mh-cond .dt td:nth-child(3) { width: 13%; }
+  .mh-alg .dt th:nth-child(2), .mh-alg .dt td:nth-child(2) { width: 12%; }
+  .mh-alg .dt th:nth-child(3), .mh-alg .dt td:nth-child(3) { width: 31%; }
+  .mh-cond .dt th:nth-child(n+4), .mh-cond .dt td:nth-child(n+4),
+  .mh-alg .dt th:nth-child(n+4), .mh-alg .dt td:nth-child(n+4) { width: 13%; }
+  .mh-cond .dt td:nth-child(6) .caption, .mh-alg .dt td:nth-child(6) .caption { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+}
 .rx-facts { display: flex; flex-direction: column; gap: 7px; font-size: 14px; color: var(--text-2); }
 .rx-facts b { color: var(--text); font-weight: 600; }
 /* an unticked declaration, flagged the way a required field is */
