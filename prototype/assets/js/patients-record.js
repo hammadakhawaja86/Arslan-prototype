@@ -159,7 +159,8 @@
     <div class="g2">${F('Frequency', 'freq', x.freq, { req: true, ph: 'e.g. Once daily' })}${S('Route', 'route', RX_ROUTE, x.route || 'Oral')}</div>
     ${F('Indication (optional)', 'indication', x.indication, { ph: 'What the medicine is being taken for' })}
     <b class="sub2">Where it was prescribed</b>
-    <div class="g2">${F('Prescriber', 'prescriber', x.prescriber, { req: true, ph: 'e.g. Dr A Rahman' })}${F('Organisation', 'org', x.org, { req: true, ph: 'e.g. Northside Medical Practice' })}</div>
+    <div class="g2">${F('Prescriber', 'prescriber', x.prescriber || App.me().name, { req: true, ph: 'e.g. Dr A Rahman' })}${F('Organisation', 'org', x.org || (App.biz ? App.biz().name : 'LeafEase'), { req: true, ph: 'e.g. Northside Medical Practice' })}</div>
+    <span class="caption rx-hint">Filled in with this practice. Change both if another provider prescribed it.</span>
     ${S('Where this information came from', 'infoSrc', RX_INFO, x.infoSrc || '', { req: true, ph: 'Choose a source' })}
     <div class="g2">${F('Original start date', 'start', x.start, { req: true, type: 'date' })}${F('End date (optional)', 'end', x.end, { type: 'date' })}</div>
     ${S('Status', 'status', ['Active', 'Completed', 'Stopped'], x.status || 'Active', { req: true })}

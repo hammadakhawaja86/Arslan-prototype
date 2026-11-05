@@ -191,11 +191,27 @@
     slots[id] = { kind: 'appt' }; if (B.follow) B.follow.fu.push({ id: a.id, when: `${long(a.date)}, ${a.t}`, with: staff(a.sid)[1], svc: a.svc }); return a; };
   const facts = (a, extra = []) => `<dl class="pt-kv">${[['Patient', a.pname], ['Staff', staff(a.sid)[1]], ['Date', long(a.date) + ' (30 min appointment)'], ['Time', a.t], ...extra, ['Location', a.loc]].map(([k, x]) => `<div><dt>${k}</dt><dd>${esc(x)}</dd></div>`).join('')}</dl>`;
   acts['bk2-go'] = () => { const p = PT.pat(B.pid), j = joined(p);
-    if (B.type === 'Online' && B.price > 0) return App.dialog(PT.modal('ri-error-warning-line', 'Reserve Appointment', 'You’re about to reserve the selected appointment for the patient.', `<p class="body2" style="margin:0">The patient receives an email with a secure payment link.${j ? '' : ' Since they haven’t joined the platform yet, the email also includes an invitation to join Aqlios.'}</p><p class="body2" style="margin:0">Once payment is complete, the appointment is confirmed automatically. The slot is held for <b>24 hours</b>; if payment isn’t received, it becomes available again.</p>${facts({ pname: PT.name(p), sid: B.staff, date: B.slot.d, t: B.slot.t, loc: B.loc }, [['Price', '£' + Number(B.price).toFixed(2)]])}`, `<button class="btn outlined lg" data-act="bk2-back">Cancel</button><button class="btn primary lg" data-act="bk2-reserve">Reserve &amp; Send Payment Link</button>`), { width: 540 });
+    if (B.type === 'Online' && B.price > 0) { B.pay = B.pay || { m: 'link', price: B.price }; return bkPayModal(); }
     const a = place('booked'); booked(a, j); };
+  /* Confirm Appointment → how it will be paid. A link reserves the slot and
+     waits; cash or a transfer is money already taken, so the appointment is
+     confirmed on the spot. */
+  const bkPayModal = () => { const M = payMethods('appt'), m = B.pay.m, P = M[m], p = PT.pat(B.pid), j = joined(p);
+    App.dialog(PT.modal('ri-error-warning-line', 'Reserve Appointment', 'You are about to reserve the selected appointment for the patient.', `${payTabs(M, m, 'bk2-pay-m')}
+      ${P.body(B.pay)}
+      ${m === 'link' && !j ? '<div class="pt-note"><i class="ri-information-line"></i><span>They haven’t joined the platform yet, so the email also includes an invitation to join Aqlios.</span></div>' : ''}
+      <div class="rx-facts">${[['Patient', PT.name(p)], ['Staff', staff(B.staff)[1]], ['Date', long(B.slot.d)], ['Time', `${B.slot.t} - ${end(B.slot.t)} (30 mins)`], ['Price', '£' + Number(B.price).toFixed(2)], ['Location', B.loc]].map(([k, x]) => `<div><b>${k}:</b> ${esc(x)}</div>`).join('')}</div>`,
+      `<button class="btn outlined lg" data-act="bk2-back">Cancel</button><button class="btn primary lg" data-act="bk2-pay-go">${P.cta}</button>`), { width: 540 }); };
+  acts['bk2-pay-m'] = el => { B.pay = { ...B.pay, ...PT.formData(), m: el.dataset.v, price: B.price }; bkPayModal(); };
+  acts['bk2-pay-go'] = () => { const M = payMethods('appt'), m = B.pay.m, P = M[m], d = PT.formData();
+    if (P.need.length && !PT.needs(d, P.need)) return;
+    B.pay = { ...B.pay, ...d };
+    if (m === 'link') return acts['bk2-reserve']();
+    const j = joined(PT.pat(B.pid)), a = place('booked'); a.paid = true; a.payment = { ...B.pay, method: P.t };
+    booked(a, j, P.t); };
   acts['bk2-back'] = () => { App.closeModal(); drawBook(); };
   acts['bk2-reserve'] = () => { const j = joined(PT.pat(B.pid)), a = place('reserved'); App.dialog(`<div class="pt-dlg"><span class="pt-sent-ic"><i class="ri-check-line"></i></span><h2 id="dlg-title">Reservation Created</h2><p class="body2" style="margin:0">The slot is reserved and ${esc(a.pname)} has been emailed a secure payment link.</p><p class="body2" style="margin:0"><b>Reservation expires in 24 hours.</b><br>Once payment is complete, the appointment is confirmed automatically.</p>${j ? '' : '<p class="body2" style="margin:0"><b>Patient communication</b><br>They’ve also been invited to join Aqlios, because they aren’t on the platform yet.</p>'}<button class="btn primary lg block" data-act="bk2-done" data-id="${a.id}" autofocus>Done</button></div>`, { width: 460 }); };
-  const booked = (a, j) => App.dialog(`<div class="pt-dlg"><span class="pt-sent-ic"><i class="ri-check-line"></i></span><h2 id="dlg-title">Appointment Booked</h2><p class="body2" style="margin:0">The slot is booked and ${esc(a.pname)} has been sent:</p><div class="stack g4"><span class="row g8"><i class="ri-checkbox-circle-fill good"></i>Booking confirmation</span><span class="row g8"><i class="ri-checkbox-circle-fill good"></i>Appointment details</span>${j ? '' : '<span class="row g8"><i class="ri-checkbox-circle-fill good"></i>Invitation to join Aqlios</span>'}</div><div class="pt-dlg-foot"><button class="btn outlined lg" data-act="bk2-view-a" data-id="${a.id}">View Appointment</button><button class="btn primary lg" data-act="bk2-done" data-id="${a.id}" autofocus>Done</button></div></div>`, { width: 460 });
+  const booked = (a, j, paidBy) => App.dialog(`<div class="pt-dlg"><span class="pt-sent-ic"><i class="ri-check-line"></i></span><h2 id="dlg-title">Appointment Booked</h2><p class="body2" style="margin:0">The slot is booked and ${esc(a.pname)} has been sent:</p><div class="stack g4"><span class="row g8"><i class="ri-checkbox-circle-fill good"></i>Booking confirmation</span><span class="row g8"><i class="ri-checkbox-circle-fill good"></i>Appointment details</span>${paidBy ? `<span class="row g8"><i class="ri-checkbox-circle-fill good"></i>Receipt — paid by ${esc(paidBy.toLowerCase())}, £${Number(a.price).toFixed(2)}</span>` : ''}${j ? '' : '<span class="row g8"><i class="ri-checkbox-circle-fill good"></i>Invitation to join Aqlios</span>'}</div><div class="pt-dlg-foot"><button class="btn outlined lg" data-act="bk2-view-a" data-id="${a.id}">View Appointment</button><button class="btn primary lg" data-act="bk2-done" data-id="${a.id}" autofocus>Done</button></div></div>`, { width: 460 });
   acts['bk2-done'] = el => { const a = A[el.dataset.id]; App.closeModal(); if (location.hash.startsWith('#/appointments/') && !location.hash.endsWith('table')) { keep(); App.snack(`Follow-up booked for ${long(a.date)} at ${a.t}.`); return; } v.week = monday(a.date); v.day = a.date; if (!sel().includes(a.sid)) v.staff = [...sel(), a.sid]; App.go('#/appointments'); App.render(); };
   acts['bk2-view-a'] = el => details(A[el.dataset.id]);
 
@@ -324,7 +340,7 @@
   };
   const rxPaid = r => RXROUTE[r][3];
   const rxModal = (a, x = {}) => { const route = x.route || 'internal'; const [, , blurb, takesPay] = RXROUTE[route];
-    App.dialog(PT.modal('ri-capsule-line', 'Prescribe Medication', 'Review and confirm the medication prescription for this patient.', `<div class="ap-rxmeta"><div><small>Business source</small><b>LeafEase</b></div><div><small>Added by</small><b>Muhammad Arslan</b></div><div><small>Status</small>${chip('Under Review', 't-orange', 'ri-time-line')}</div></div>${x.ai ? '<div class="pt-note"><i class="ri-sparkling-2-line"></i>Pre-filled from an AI suggestion. Check every field before sending.</div>' : ''}<b class="sub2">Dispensing route</b>
+    App.dialog(PT.modal('ri-capsule-line', 'Prescribe Medication', 'Review and confirm the medication prescription for this patient.', `<div class="ap-rxmeta"><div><small>Business source</small><b>${esc(App.biz ? App.biz().name : 'LeafEase')}</b></div><div><small>Prescriber</small><b>${esc(App.me().name)}</b></div><div><small>Status</small>${chip('Under Review', 't-orange', 'ri-time-line')}</div></div>${x.ai ? '<div class="pt-note"><i class="ri-sparkling-2-line"></i>Pre-filled from an AI suggestion. Check every field before sending.</div>' : ''}<b class="sub2">Dispensing route</b>
     <div class="pt-seg ap-rxroute" role="tablist" aria-label="Dispensing route">${Object.entries(RXROUTE).map(([k, [t, i]]) => `<button type="button" role="tab" aria-selected="${k === route}" class="${k === route ? 'on' : ''}" data-act="rx-route" data-v="${k}" data-id="${a.id}" data-ai="${x.ai ? 1 : ''}"><i class="${i}"></i>${t}</button>`).join('')}</div>
     <div class="ap-sub"><span class="body2">${blurb}</span></div><b class="sub2">Prescription Details</b>
     ${PT.F('Medication Name', 'name', x.name || '', { req: true, ph: 'e.g. Mounjaro (Tirzepatide)' })}<div class="pt-dose">${PT.F('Dosage', 'dose', x.dose ?? '', { req: true, type: 'number', step: '0.25' })}${PT.S('Unit', 'unit', ['mg', 'mcg', 'ml', 'units'], x.unit || 'mg')}</div><div class="pt-dose">${PT.F('Frequency (every)', 'freq', x.freq ?? '', { req: true, type: 'number' })}${PT.S('Per', 'funit', ['Days', 'Weeks', 'Months'], x.funit || 'Weeks')}</div>
@@ -354,21 +370,37 @@
      waits, while cash and a bank transfer are money already in hand — so those
      two take the details of a payment that has happened, mark it received
      immediately, and send no link. The amount is locked to the price in both. */
-  const TAKEN = 'Payment will be marked as received immediately. The prescription is released to the dispenser straight away, no payment link is sent and no hold applies.';
-  const locked = price => `${App.field('Amount Received', `<input value="£${Number(price).toFixed(2)}" readonly tabindex="-1"><span class="adorn"><i class="ri-lock-line"></i></span>`, { cls: 'dis' })}<span class="caption rx-lockcap">Fixed to the prescription price, not editable here</span>`;
-  const PAY = {
-    link: { t: 'Payment Link', cta: 'Send Payment Link', status: 'Awaiting Payment', need: [],
-      body: () => `<div class="ap-sub stack g8"><span class="body2">The patient will receive an email containing a secure payment link. Once payment is completed, the prescription will be automatically released to the dispenser.</span><span class="body2">The prescription will be held for 24 hours. If payment is not received within this period, the hold will expire and it will return to the clinician for review.</span></div>` },
-    cash: { t: 'Cash', cta: 'Confirm &amp; Record Cash Payment', status: 'Paid', need: [],
-      body: rx => `<div class="rx-paybox stack g12">${locked(rx.price)}${PT.F('Receipt No. (optional)', 'receipt', rx.receipt, { ph: 'Receipt No. (optional)' })}${PT.S('Received By', 'receivedBy', STAFF.map(s => s[1]), rx.receivedBy || 'Muhammad Arslan')}<div class="pt-note"><i class="ri-information-line"></i><span>${TAKEN}</span></div></div>` },
-    bank: { t: 'Bank Transfer', cta: 'Confirm &amp; Record Bank Transfer', status: 'Paid', need: ['transferDate', 'txnRef'],
-      body: rx => `<div class="rx-paybox stack g12">${locked(rx.price)}${PT.F('Transfer Date', 'transferDate', rx.transferDate, { req: true, type: 'date' })}${PT.F('Transaction Reference', 'txnRef', rx.txnRef, { req: true, ph: 'Transaction Reference' })}<div class="pt-note"><i class="ri-information-line"></i><span>${TAKEN}</span></div></div>` }
+  /* One payment step, two subjects. A payment link holds the thing and waits;
+     cash and a bank transfer are money already in hand, so those take the
+     details of a payment that has happened, mark it received immediately and
+     send no link. Only the nouns differ between an appointment and a
+     prescription, so the wording is a table and the rest is shared. */
+  const PAYTXT = {
+    appt: { cap: 'Fixed to the appointment price, not editable here', linkCta: 'Reserve &amp; Send Payment Link',
+      a: 'The patient will receive an email containing a secure payment link. Once payment is completed, the appointment will be automatically confirmed.',
+      b: 'The selected slot will be reserved for 24 hours. If payment is not received within this period, the reservation will expire and the slot will become available for booking again.',
+      now: 'Payment will be marked as received immediately. The appointment is confirmed straight away, no payment link is sent and no reservation hold applies.' },
+    rx: { cap: 'Fixed to the prescription price, not editable here', linkCta: 'Send Payment Link',
+      a: 'The patient will receive an email containing a secure payment link. Once payment is completed, the prescription will be automatically released to the dispenser.',
+      b: 'The prescription will be held for 24 hours. If payment is not received within this period, the hold will expire and it will return to the clinician for review.',
+      now: 'Payment will be marked as received immediately. The prescription is released to the dispenser straight away, no payment link is sent and no hold applies.' }
   };
+  const payees = () => [...new Set([App.me().name, ...STAFF.map(s => s[1])])];
+  const locked = (price, cap) => `${App.field('Amount Received', `<input value="£${Number(price).toFixed(2)}" readonly tabindex="-1"><span class="adorn"><i class="ri-lock-line"></i></span>`, { cls: 'dis' })}<span class="caption rx-lockcap">${cap}</span>`;
+  const payMethods = subj => { const T = PAYTXT[subj]; return {
+    link: { t: 'Payment Link', cta: T.linkCta, status: 'Awaiting Payment', need: [],
+      body: () => `<div class="ap-sub stack g8"><span class="body2">${T.a}</span><span class="body2">${T.b}</span></div>` },
+    cash: { t: 'Cash', cta: 'Confirm &amp; Record Cash Payment', status: 'Paid', need: [],
+      body: v => `<div class="rx-paybox stack g12">${locked(v.price, T.cap)}${PT.F('Receipt No. (optional)', 'receipt', v.receipt, { ph: 'Receipt No. (optional)' })}${PT.S('Received By', 'receivedBy', payees(), v.receivedBy || App.me().name)}<div class="pt-note"><i class="ri-information-line"></i><span>${T.now}</span></div></div>` },
+    bank: { t: 'Bank Transfer', cta: 'Confirm &amp; Record Bank Transfer', status: 'Paid', need: ['transferDate', 'txnRef'],
+      body: v => `<div class="rx-paybox stack g12">${locked(v.price, T.cap)}${PT.F('Transfer Date', 'transferDate', v.transferDate, { req: true, type: 'date' })}${PT.F('Transaction Reference', 'txnRef', v.txnRef, { req: true, ph: 'Transaction Reference' })}<div class="pt-note"><i class="ri-information-line"></i><span>${T.now}</span></div></div>` }
+  }; };
+  const payTabs = (M, on, act) => `<b class="sub2">How will this be paid?</b><div class="pt-seg" role="tablist" aria-label="Payment method">${Object.entries(M).map(([k, v]) => `<button type="button" role="tab" aria-selected="${k === on}" class="${k === on ? 'on' : ''}" data-act="${act}" data-v="${k}">${v.t}</button>`).join('')}</div>`;
+  const PAY = payMethods('rx');
   let rxPend = null;
   const rxPayModal = (a, rx, ai, method) => { rxPend = { a, rx, ai, method }; const P = PAY[method]; const p = a.pid ? PT.pat(a.pid) : null;
     const dur = rx.ongoing ? `Ongoing, from ${PT.dmy(rx.start)}` : `${PT.dmy(rx.start)} to ${PT.dmy(rx.end)}`;
-    App.dialog(PT.modal('ri-error-warning-line', 'Send Prescription', 'You are about to send this prescription for the patient.', `<b class="sub2">How will this be paid?</b>
-      <div class="pt-seg" role="tablist" aria-label="Payment method">${Object.entries(PAY).map(([k, v]) => `<button type="button" role="tab" aria-selected="${k === method}" class="${k === method ? 'on' : ''}" data-act="rx-pay-m" data-v="${k}">${v.t}</button>`).join('')}</div>
+    App.dialog(PT.modal('ri-error-warning-line', 'Send Prescription', 'You are about to send this prescription for the patient.', `${payTabs(PAY, method, 'rx-pay-m')}
       ${P.body(rx)}
       <div class="rx-facts">${[['Patient', a.pname || (p ? PT.name(p) : '—')], ['Prescriber', staff(a.sid)[1]], ['Route', RXROUTE[rx.route][0]], ['Medication', rx.name], ['Dosage', `${rx.dose} ${rx.unit} · every ${rx.freq} ${String(rx.funit).toLowerCase()}`], ['Duration', dur], ['Price', '£' + Number(rx.price).toFixed(2)]].map(([k, x]) => `<div><b>${k}:</b> ${esc(x)}</div>`).join('')}</div>`,
       `<button class="btn outlined lg" data-act="close-modal">Cancel</button><button class="btn primary lg" data-act="rx-pay-go" data-m="${method}">${P.cta}</button>`), { width: 540 }); };

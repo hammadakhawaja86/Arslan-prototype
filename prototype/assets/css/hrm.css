@@ -1102,6 +1102,7 @@ tr.fw-off td { color: var(--text-2); }
    details, then the summary as plain "Label: value" lines */
 .rx-paybox { border: 1px solid var(--field); border-radius: 12px; padding: 14px; }
 .rx-lockcap { margin: -6px 0 0 12px; }
+.rx-hint { margin: -8px 0 0 12px; }
 .rx-facts { display: flex; flex-direction: column; gap: 7px; font-size: 14px; color: var(--text-2); }
 .rx-facts b { color: var(--text); font-weight: 600; }
 /* an unticked declaration, flagged the way a required field is */
