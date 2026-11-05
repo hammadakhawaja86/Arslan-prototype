@@ -1,0 +1,17 @@
+# Dependencies
+node_modules/
+
+# Next.js build output
+.next/
+
+# Environment files — these carry JWT signing secrets
+.env*
+
+# Local SQLite databases (recreate with `npm run setup`)
+*.db
+*.db-journal
+
+# TypeScript incremental build info
+*.tsbuildinfo
+
+.DS_Store
