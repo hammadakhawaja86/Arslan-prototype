@@ -121,7 +121,7 @@
   PT.tabs['medical-history'] = p => { const r = rec(p); const meds = r.meds.filter(m => r.f.medView === 'Active' ? m.status === 'Active' : m.status !== 'Active');
     return title('Medical History') + `<div class="stack g16">
       ${box('c', 'ri-heart-pulse-line', `Medical Conditions (${r.cond.filter(c => c.status === 'Active').length} Active)`, `<button class="btn primary" data-act="mh-add" data-k="cond"><i class="ri-add-circle-line"></i>Add Medical Condition</button>`, table(['Condition', 'Description', 'Status', 'Source', 'Added By', 'Action'], r.cond.map(c => `<tr><td><b class="fw5">${esc(c.name)}</b></td><td>${esc(c.desc)}</td><td>${stChip(c.status)}</td><td>${esc(c.source)}</td><td>${esc(c.by)}</td><td>${rowAct('cond', c)}</td></tr>`), 6, 'No medical conditions recorded.'), r)}
-      ${box('m', 'ri-capsule-line', 'Medications', `${seg('mh-medview', [['Active', 'Active'], ['Historical', 'Historical']], r.f.medView)}<button class="btn outlined" data-act="mh-rx"><i class="ri-capsule-line"></i>Add Prescription</button><button class="btn primary" data-act="mh-add" data-k="meds"><i class="ri-add-circle-line"></i>Add Medication</button>`, table(['Medication', 'Dosage', 'Frequency', 'Status', 'Start Date', 'End Date', 'Source', 'Added By', 'Action'], meds.map(m => `<tr><td><span class="cell2"><b class="fw5">${esc(m.name)}</b>${m.ext ? `<small>Prescribed by ${esc(m.prescriber)} · ${esc(m.org)}</small><span class="row g4 mh-rxtags">${/^Patient/.test(m.verify || '') ? chip('Unverified', 't-orange', 'ri-error-warning-line') : chip('Verified', 't-green', 'ri-verified-badge-line')}${m.cd ? chip('Controlled drug', 't-red', 'ri-shield-keyhole-line') : ''}</span>` : ''}</span></td><td>${m.dose} ${m.unit}</td><td>${esc(m.freq)}</td><td>${stChip(m.status)}</td><td>${PT.dmy(m.start)}</td><td>${m.end ? PT.dmy(m.end) : '—'}</td><td>${esc(m.source)}</td><td>${esc(m.by)}</td><td>${rowAct('meds', m)}</td></tr>`), 9, r.f.medView === 'Active' ? 'No active medications.' : 'No past medications.'), r)}
+      ${box('m', 'ri-capsule-line', 'Medications', `${seg('mh-medview', [['Active', 'Active'], ['Historical', 'Historical']], r.f.medView)}<button class="btn outlined" data-act="mh-rx"><i class="ri-capsule-line"></i>Add Prescription</button><button class="btn primary" data-act="mh-add" data-k="meds"><i class="ri-add-circle-line"></i>Add Medication</button>`, table(['Medication', 'Dosage', 'Frequency', 'Status', 'Start Date', 'End Date', 'Source', 'Added By', 'Action'], meds.map(m => `<tr><td><span class="cell2"><b class="fw5">${esc(m.name)}</b>${m.prescriber ? `<small>Prescribed by ${esc(m.prescriber)} · ${esc(m.org)}</small>` : ''}${m.ext || m.pay || m.cd ? `<span class="row g4 mh-rxtags">${m.ext ? (/^Patient/.test(m.verify || '') ? chip('Unverified', 't-orange', 'ri-error-warning-line') : chip('Verified', 't-green', 'ri-verified-badge-line')) : ''}${m.pay ? chip(`${m.pay} · £${Number(m.price).toFixed(2)}`, m.paid === 'Paid' ? 't-green' : 't-orange', m.paid === 'Paid' ? 'ri-checkbox-circle-line' : 'ri-time-line') : ''}${m.cd ? chip('Controlled drug', 't-red', 'ri-shield-keyhole-line') : ''}</span>` : ''}</span></td><td>${m.dose} ${m.unit}</td><td>${esc(m.freq)}</td><td>${stChip(m.status)}</td><td>${PT.dmy(m.start)}</td><td>${m.end ? PT.dmy(m.end) : '—'}</td><td>${esc(m.source)}</td><td>${esc(m.by)}</td><td>${rowAct('meds', m)}</td></tr>`), 9, r.f.medView === 'Active' ? 'No active medications.' : 'No past medications.'), r)}
       ${box('a', 'ri-virus-line', 'Allergies', `<button class="btn primary" data-act="mh-add" data-k="alg"><i class="ri-add-circle-line"></i>Add New Allergy</button>`, table(['Allergy', 'Severity', 'Reaction', 'Source', 'Added By', 'Action'], r.alg.map(a => `<tr><td><b class="fw5">${esc(a.name)}</b></td><td>${sevChip(a.severity)}</td><td>${esc(a.reaction)}</td><td>${esc(a.source)}</td><td>${esc(a.by)}</td><td>${rowAct('alg', a)}</td></tr>`), 6, 'No known allergies recorded.'), r)}</div>`; };
   acts['mh-tog'] = el => { const f = rec(cur()).f.mhOpen; f[el.dataset.k] = !f[el.dataset.k]; App.render(); };
   acts['mh-medview'] = el => { rec(cur()).f.medView = el.dataset.v; App.render(); };
@@ -150,6 +150,11 @@
   const RX_INFO = ['Patient reported', 'GP record or summary', 'Hospital discharge letter', 'Repeat prescription slip', 'Pharmacy record', 'Other'];
   const RX_ROUTE = ['Oral', 'Topical', 'Subcutaneous', 'Intramuscular', 'Inhaled', 'Other'];
   const RX_VERIFY = ['Patient reported — not yet verified', 'Verified against a document'];
+  /* Who dispenses it, and so whether the practice is paid. Recording a medicine
+     prescribed elsewhere takes no money; dispensing it here or through the
+     pharmacy portal does, and those two go on to the payment step. */
+  const RX_DISP = { none: ['Prescribed elsewhere — no payment taken', false], internal: ['Internal (Within Practice)', true], pharmacy: ['Pharmacy Portal', true] };
+  const dispPays = k => RX_DISP[k] ? RX_DISP[k][1] : false;
   let rxFile = null;
   const rxBody = (x, r) => `<div class="pt-note warn"><i class="ri-information-line"></i><span><b>Recording only.</b> This adds a medicine the patient is already taking. It does not issue a prescription and nothing is sent to a pharmacy.</span></div>
     ${r.alg.length ? `<div class="pt-warn"><i class="ri-alert-line"></i><span><b>Check against recorded allergies</b>${r.alg.map(a => `${esc(a.name)} (${a.severity.toLowerCase()})`).join(' · ')}</span></div>` : ''}
@@ -164,6 +169,9 @@
     ${S('Where this information came from', 'infoSrc', RX_INFO, x.infoSrc || '', { req: true, ph: 'Choose a source' })}
     <div class="g2">${F('Original start date', 'start', x.start, { req: true, type: 'date' })}${F('End date (optional)', 'end', x.end, { type: 'date' })}</div>
     ${S('Status', 'status', ['Active', 'Completed', 'Stopped'], x.status || 'Active', { req: true })}
+    <b class="sub2">Dispensing &amp; payment</b>
+    ${App.field('Who dispenses this', `<select name="disp" data-ch="rx-disp">${Object.entries(RX_DISP).map(([k, [t]]) => `<option value="${k}" ${k === (x.disp || 'none') ? 'selected' : ''}>${t}</option>`).join('')}</select>`, { req: true, cls: 'select' })}
+    ${dispPays(x.disp) ? F('Price (£)', 'price', x.price, { req: true, type: 'number', step: '0.01', ph: '0.00' }) : '<span class="caption rx-hint">No payment is taken for a medicine prescribed somewhere else.</span>'}
     <b class="sub2">Verification</b>
     ${S('Verification', 'verify', RX_VERIFY, x.verify || RX_VERIFY[0], { req: true })}
     <label class="dropzone pt-drop ${rxFile ? 'has' : ''}" id="rx-drop"><input type="file" accept=".jpg,.jpeg,.png,.pdf" data-ch="rx-file" hidden><i class="ri-upload-cloud-2-line"></i><b>${rxFile ? esc(rxFile) : 'Attach evidence (optional)'}</b><span class="caption">Repeat slip, GP letter or discharge summary — JPEG, PNG or PDF</span><span class="btn outlined sm pt-dark">Browse File</span></label>
@@ -174,6 +182,8 @@
     App.dialog(modal('ri-capsule-line', x.id ? 'Edit recorded prescription' : 'Record existing prescription', x.id ? `Update ${esc(x.name)}` : 'Add a medicine this patient is already taking that is not in their record yet.', rxBody(x, r), `<button class="btn outlined lg" data-act="close-modal">Cancel</button><button class="btn primary lg" data-act="rx-save" data-id="${x.id || ''}">${x.id ? 'Save changes' : 'Record prescription'}</button>`, 'green'), { width: 560 }); };
   acts['mh-rx'] = () => rxOpen({});
   acts['rx-edit'] = el => rxOpen(rec(cur()).meds.find(m => m.id === el.dataset.id));
+  /* changing who dispenses redraws the form, keeping what has been typed */
+  chs['rx-disp'] = el => { const d = formData(); rxOpen({ ...d, disp: el.value, evidence: rxFile, id: App.$('[data-act=rx-save]')?.dataset.id || '' }); };
   chs['rx-file'] = el => { const f = el.files[0]; if (!f) return;
     if (f.size > 10 * 1024 * 1024) { App.snack('That file is over 10 MB. Choose a smaller file.', 'error'); return; }
     rxFile = f.name; const z = App.$('#rx-drop'); z.classList.add('has'); z.querySelector('b').textContent = f.name; z.querySelector('.caption').textContent = `${(f.size / 1024).toFixed(0)} KB · attached as evidence`; };
@@ -181,14 +191,26 @@
     if (d.end && d.start && d.end < d.start) { App.$('#pt-form [name=end]').closest('.field').classList.add('err'); App.snack('The end date must be after the start date.', 'error'); return; }
     const attest = App.$('#rx-attest'); attest.classList.toggle('err', !d.attest);
     if (!d.attest) { App.snack('Confirm the declaration before recording this prescription.', 'error'); return; }
+    const pays = dispPays(d.disp);
+    if (pays && !(+d.price > 0)) { App.$('#pt-form [name=price]').closest('.field').classList.add('err'); App.snack('Enter the price the patient will pay.', 'error'); return; }
     const list = rec(cur()).meds, x = list.find(i => i.id === el.dataset.id);
-    const entry = { ...d, dose: +d.dose, cd: !!d.cd, ext: true, source: 'External', by: 'Clinician', evidence: rxFile || '',
-      recordedAt: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }), recordedBy: 'Muhammad Arslan' };
-    delete entry.attest;
-    if (x) Object.assign(x, entry); else list.unshift({ id: uid(), ...entry });
-    rec(cur()).f.medView = d.status === 'Active' ? 'Active' : 'Historical';
-    App.closeModal(); App.render();
-    App.snack(x ? `${d.name} updated.` : `${d.name} recorded\nAdded to this patient’s medications as an external prescription — not issued by this clinic.`); };
+    const base = { ...d, dose: +d.dose, cd: !!d.cd, ext: !pays, source: pays ? RX_DISP[d.disp][0] : 'External', by: 'Clinician', evidence: rxFile || '',
+      recordedAt: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }), recordedBy: App.me().name };
+    delete base.attest;
+    const save = entry => { if (x) Object.assign(x, entry); else list.unshift({ id: uid(), ...entry });
+      rec(cur()).f.medView = entry.status === 'Active' ? 'Active' : 'Historical';
+      App.closeModal(); App.render(); };
+    if (!pays) { save(base);
+      App.snack(x ? `${d.name} updated.` : `${d.name} recorded\nAdded to this patient’s medications as an external prescription — not issued by this clinic.`); return; }
+    /* dispensed here or through the pharmacy portal, so the practice is paid */
+    const p = cur();
+    PT.payStep({ subj: 'rx', price: +d.price, title: 'Prescription Payment', sub: 'You are about to add this prescription for the patient.',
+      facts: [['Patient', PT.name(p)], ['Prescriber', d.prescriber], ['Dispensing', RX_DISP[d.disp][0]], ['Medication', d.name],
+        ['Dosage', `${d.dose} ${d.unit} · ${d.freq}`], ['Price', '£' + Number(d.price).toFixed(2)]],
+      onDone: pay => { save({ ...base, pay: pay.method, paid: pay.status, receipt: pay.receipt || '', receivedBy: pay.receivedBy || '', transferDate: pay.transferDate || '', txnRef: pay.txnRef || '' });
+        App.snack(pay.status === 'Paid'
+          ? `${d.name} added and paid\n${pay.method} · £${Number(d.price).toFixed(2)} · dispensed ${RX_DISP[d.disp][0].toLowerCase()}.`
+          : `${d.name} added — awaiting payment\nA secure payment link has been emailed to the patient · £${Number(d.price).toFixed(2)}.`); } }); };
 
   /* ---------- Documents ---------- */
   const CATS = ['Blood Reports', 'Documents', 'Review Forms', 'Questionnaires', 'Consent Forms'];
