@@ -397,19 +397,6 @@
   }; };
   const payTabs = (M, on, act) => `<b class="sub2">How will this be paid?</b><div class="pt-seg" role="tablist" aria-label="Payment method">${Object.entries(M).map(([k, v]) => `<button type="button" role="tab" aria-selected="${k === on}" class="${k === on ? 'on' : ''}" data-act="${act}" data-v="${k}">${v.t}</button>`).join('')}</div>`;
   const PAY = payMethods('rx');
-  /* The same payment step, callable from outside this file (the Medications
-     box on the patient record uses it). The caller supplies the summary lines
-     and what to do once payment is settled. */
-  PT.payStep = o => { const M = payMethods(o.subj || 'rx'), st = o.state || (o.state = { m: 'link' });
-    acts['pay-step-m'] = el => { Object.assign(st, PT.formData(), { m: el.dataset.v }); draw(); };
-    acts['pay-step-go'] = () => { const P = M[st.m], d = PT.formData(); if (P.need.length && !PT.needs(d, P.need)) return;
-      Object.assign(st, d); o.onDone({ ...st, method: P.t, status: P.status }); };
-    function draw() { const P = M[st.m];
-      App.dialog(PT.modal('ri-error-warning-line', o.title, o.sub, `${payTabs(M, st.m, 'pay-step-m')}
-        ${P.body({ ...st, price: o.price })}
-        <div class="rx-facts">${o.facts.map(([k, v]) => `<div><b>${k}:</b> ${esc(v)}</div>`).join('')}</div>`,
-        `<button class="btn outlined lg" data-act="close-modal">Cancel</button><button class="btn primary lg" data-act="pay-step-go">${P.cta}</button>`), { width: 540 }); }
-    draw(); };
   let rxPend = null;
   const rxPayModal = (a, rx, ai, method) => { rxPend = { a, rx, ai, method }; const P = PAY[method]; const p = a.pid ? PT.pat(a.pid) : null;
     const dur = rx.ongoing ? `Ongoing, from ${PT.dmy(rx.start)}` : `${PT.dmy(rx.start)} to ${PT.dmy(rx.end)}`;
