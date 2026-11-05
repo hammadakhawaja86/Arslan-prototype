@@ -28,6 +28,10 @@
   const INV = { active: ['Active', 't-green', 'ri-checkbox-circle-line'], invited: ['Invited', 't-orange', 'ri-time-line'], expired: ['Invite expired', 't-red', 'ri-error-warning-line'], none: ['Not invited', 't-grey', 'ri-send-plane-line'], archived: ['Inactive', 't-red', 'ri-error-warning-line'] };
   const invChip = p => { const [t, tone, i] = INV[p.invite]; return `<span class="chip sm filled ${tone}"><i class="${i}"></i>${t}</span>`; };
   const invNote = p => ({ active: `Joined ${p.joined}`, invited: `Sent ${p.sent} · ${p.note}`, expired: `Sent ${p.sent} · ${p.note}`, none: 'Created by staff · no account', archived: '' })[p.invite];
+  /* the invite action as a status chip: same affordance as "Profile update to review", tone follows the status beside it */
+  const INVACT = { invited: ['Resend invite', 'orange', 'ri-refresh-line'], expired: ['Resend invite', 'red', 'ri-refresh-line'], none: ['Send invite', 'blue', 'ri-send-plane-line'] };
+  const invAct = p => { const a = INVACT[p.invite]; if (!a) return ''; const [t, tone, i] = a;
+    return `<button class="pa-chip pa-act ${tone}" data-act="pt-invite" data-id="${p.id}" title="${t} for ${esc(name(p))}" aria-label="${t} for ${esc(name(p))}"><i class="${i}"></i>${t}</button>`; };
   const counts = () => ({ total: P.length, active: P.filter(p => p.invite === 'active').length, pending: P.filter(p => p.invite === 'invited').length });
 
   /* ---------- shared frame: breadcrumb + pill tabs + Create Patient ---------- */
@@ -49,7 +53,7 @@
       ${filters('Search by name or email, phone')}
       <div class="table-card"><div class="table-scroll"><table class="dt"><thead><tr><th>Patient Detail</th><th>DOB</th><th>Last Appt <i class="ri-arrow-down-line"></i></th><th>Next Appt <i class="ri-arrow-down-line"></i></th><th>Status</th><th>Actions</th></tr></thead><tbody id="pt-rows">${listRows()}</tbody></table></div>${App.pager(Math.min(10, P.length), P.length)}</div>`); }, meta);
   function listRows() { const l = P.filter(match); if (!l.length) return empty(6, 'patients');
-    return l.map(p => `<tr><td>${person(p)}</td><td class="tnum">${dmy(p.dob)}</td><td>${esc(p.lastAppt || '---')}</td><td>${esc(p.next || '---')}</td><td><span class="cell2">${invChip(p)}<small>${esc(invNote(p))}</small>${p.pending ? `<a class="pa-chip blue" href="#/patients/${p.id}" style="text-decoration:none;align-self:flex-start"><i class="ri-user-settings-line" style="margin-right:4px"></i>Profile update to review</a>` : ''}</span></td>
+    return l.map(p => `<tr><td>${person(p)}</td><td class="tnum">${dmy(p.dob)}</td><td>${esc(p.lastAppt || '---')}</td><td>${esc(p.next || '---')}</td><td><span class="cell2">${invChip(p)}<small>${esc(invNote(p))}</small>${invAct(p)}${p.pending ? `<a class="pa-chip blue" href="#/patients/${p.id}" style="text-decoration:none;align-self:flex-start"><i class="ri-user-settings-line" style="margin-right:4px"></i>Profile update to review</a>` : ''}</span></td>
       <td><span class="row-actions">${p.invite === 'active' ? '' : `<button class="icon-btn s20 ${p.invite === 'none' ? '' : 'warn'}" data-act="pt-invite" data-id="${p.id}" aria-label="${p.invite === 'none' ? 'Send' : 'Resend'} invitation to ${esc(name(p))}" title="${p.invite === 'none' ? 'Send invitation' : 'Resend invitation'}"><i class="ri-send-plane-line"></i></button>`}
         <button class="icon-btn s20" data-go="#/patients/${p.id}" aria-label="View ${esc(name(p))}" title="View"><i class="ri-eye-line"></i></button><button class="icon-btn s20 warn" data-act="pt-archive" data-id="${p.id}" aria-label="Archive ${esc(name(p))}" title="Archive"><i class="ri-archive-line"></i></button></span></td></tr>`).join(''); }
 
