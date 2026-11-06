@@ -1110,13 +1110,32 @@ tr.fw-off td { color: var(--text-2); }
    caption, because a dose is read, not skimmed. */
 .mh-meds .cell2 .mh-dose { font-size: 13px; letter-spacing: 0; margin-top: 1px; }
 /* ---------- Create prescription ---------- */
-/* the tick that puts a medicine on the prescription, in the table */
-.cp-cell { align-items: flex-start; }
-.cbx.cp-box input { margin: 0; width: 18px; height: 18px; }
-.mh-meds .dt th .cbx.cp-box { margin-right: 8px; vertical-align: -4px; }
+/* the tick that puts a medicine on the prescription, in the table: a light
+   rounded box that sits on the medicine's own line, not on top of the cell */
+.cp-cell { align-items: flex-start; gap: 12px; }
+.cp-cell > .cbx { margin-top: 3px; }
+.cbx.cp-box { padding: 2px; border-radius: 6px; }
+.cbx.cp-box input { margin: 0; width: 17px; height: 17px; border: 1.5px solid rgba(0,0,0,.26); border-radius: 4px; transition: border-color .12s, background .12s; }
+.cbx.cp-box input:hover { border-color: var(--primary); }
+.cbx.cp-box input:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.cbx.cp-box input:checked, .cbx.cp-box input:checked:hover { background: var(--primary); border-color: var(--primary); }
+.cbx.cp-box input:checked::after { width: 4px; height: 9px; border-width: 0 2px 2px 0; }
+.mh-meds .dt th .cbx.cp-box { margin: 0 10px 0 -2px; vertical-align: -5px; }
 /* the header's part-selected state: a dash, not a tick */
 .cbx.half input { background: var(--primary); border-color: var(--primary); }
-.cbx.half input::after { content: ""; width: 10px; height: 2px; background: #fff; border: 0; transform: none; border-radius: 1px; }
+.cbx.half input::after { content: ""; width: 9px; height: 2px; background: #fff; border: 0; transform: none; border-radius: 1px; }
+/* a locked row keeps the shape of a button so the icons stay in line */
+.row-actions .mh-lock { color: rgba(0,0,0,.32); cursor: default; }
+/* four actions have to sit on one line in a 13% column, so the medical history
+   tables run them a little tighter than the app's default */
+.pt-box .row-actions { gap: 2px; }
+.pt-box .row-actions .icon-btn { padding: 4px; }
+.mh-cond .dt th:last-child, .mh-cond .dt td:last-child,
+.mh-meds .dt th:last-child, .mh-meds .dt td:last-child,
+.mh-alg .dt th:last-child, .mh-alg .dt td:last-child { padding-left: 12px; padding-right: 12px; }
+/* the eight-column medication table runs its middle cells a little tighter so a
+   longer status word and a full date both stay on one line */
+.mh-meds .dt th:nth-child(n+2):nth-child(-n+5), .mh-meds .dt td:nth-child(n+2):nth-child(-n+5) { padding-left: 11px; padding-right: 11px; }
 /* the dialog: title and footer stay put, the three steps scroll between them */
 .dialog > .cp-dlg { display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
 .cp-dlg .dlg-head { align-items: center; padding: 22px 24px; }
@@ -1175,32 +1194,34 @@ tr.fw-off td { color: var(--text-2); }
    neutral and delete stays red. */
 .row-actions .mh-rx-btn { color: var(--primary); }
 .row-actions .mh-rx-btn:hover { background: var(--p08); }
-/* Medical History tables: one rhythm across all three.
+/* Medical History tables: one rhythm.
    The name column and the last three (Source, Added By, Action) are the same
-   width everywhere, so those edges line up down the page; whatever is left
-   over is split evenly between each table's own middle columns.
-   Below 1100px the sidebar leaves too little room to hold any of it, so the
-   columns go back to sizing themselves. */
+   width, so those edges line up down the page; whatever is left over is split
+   between each table's own middle columns.
+   The six-column tables hold that from 1100px. The medication table has eight
+   columns and needs 1400px before a full date, a long status word and four
+   actions all fit, so below that it sizes itself rather than clipping. */
 @media (min-width: 1100px) {
-  .mh-cond table.dt, .mh-meds table.dt, .mh-alg table.dt { table-layout: fixed; }
-  /* the name */
+  .mh-cond table.dt, .mh-alg table.dt { table-layout: fixed; }
   .mh-cond .dt th:nth-child(1), .mh-cond .dt td:nth-child(1),
-  .mh-meds .dt th:nth-child(1), .mh-meds .dt td:nth-child(1),
   .mh-alg .dt th:nth-child(1), .mh-alg .dt td:nth-child(1) { width: 20%; }
-  /* Source, Added By, Action — 13% each, so they meet in every table */
   .mh-cond .dt th:nth-child(n+4), .mh-cond .dt td:nth-child(n+4),
-  .mh-meds .dt th:nth-child(n+6), .mh-meds .dt td:nth-child(n+6),
   .mh-alg .dt th:nth-child(n+4), .mh-alg .dt td:nth-child(n+4) { width: 13%; }
-  /* the middle, 43% split evenly per table */
   .mh-cond .dt th:nth-child(2), .mh-cond .dt td:nth-child(2) { width: 28%; }
   .mh-cond .dt th:nth-child(3), .mh-cond .dt td:nth-child(3) { width: 13%; }
   .mh-alg .dt th:nth-child(2), .mh-alg .dt td:nth-child(2) { width: 11%; }
-  .mh-alg .dt th:nth-child(3), .mh-alg .dt td:nth-child(3) { width: 31%; }
+  .mh-alg .dt th:nth-child(3), .mh-alg .dt td:nth-child(3) { width: 30%; }
+}
+@media (min-width: 1400px) {
+  .mh-meds table.dt { table-layout: fixed; }
+  .mh-meds .dt th:nth-child(1), .mh-meds .dt td:nth-child(1) { width: 20%; }
+  .mh-meds .dt th:nth-child(n+6), .mh-meds .dt td:nth-child(n+6) { width: 13%; }
   .mh-meds .dt th:nth-child(n+2):nth-child(-n+5),
   .mh-meds .dt td:nth-child(n+2):nth-child(-n+5) { width: 10.25%; }
-  /* the GP record lock sits on one line in the narrower Action column */
-  .mh-cond .dt td:last-child .caption, .mh-meds .dt td:last-child .caption,
-  .mh-alg .dt td:last-child .caption { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+}
+/* the GP record lock sits on one line in the narrower Action column */
+.mh-cond .dt td:last-child .caption, .mh-meds .dt td:last-child .caption,
+.mh-alg .dt td:last-child .caption { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
 }
 .rx-facts { display: flex; flex-direction: column; gap: 7px; font-size: 14px; color: var(--text-2); }
 .rx-facts b { color: var(--text); font-weight: 600; }

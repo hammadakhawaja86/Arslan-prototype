@@ -129,7 +129,11 @@
   /* the pill writes a prescription for this one medicine: the same dialog as the
      header button, opened with just this row ticked */
   const rxBtn = x => `<button class="icon-btn s20 mh-rx-btn" data-act="cp-one" data-id="${x.id}" aria-label="Create a prescription for ${esc(x.name)}" title="Create prescription"><i class="ri-capsule-line"></i></button>`;
-  const rowAct = (kind, x) => `<span class="row-actions">${kind === 'meds' ? rxBtn(x) : ''}${editable(x) ? `<button class="icon-btn s20" data-act="mh-edit" data-k="${kind}" data-id="${x.id}" aria-label="Edit ${esc(x.name)}" title="Edit"><i class="ri-edit-box-line"></i></button><button class="icon-btn s20 danger" data-act="mh-del" data-k="${kind}" data-id="${x.id}" aria-label="Delete ${esc(x.name)}" title="Delete"><i class="ri-delete-bin-6-line"></i></button>` : `<span class="caption" title="Imported from the GP record — read only"><i class="ri-lock-line"></i> GP record</span>`}</span>`;
+  /* Every row can be opened and read. Only the ones this practice owns can be
+     changed — a GP import keeps a lock in place of edit and delete. */
+  const rowAct = (kind, x) => `<span class="row-actions">${kind === 'meds' ? rxBtn(x) : ''}<button class="icon-btn s20" data-act="mh-view" data-k="${kind}" data-id="${x.id}" aria-label="View ${esc(x.name)}" title="View"><i class="ri-eye-line"></i></button>${editable(x)
+    ? `<button class="icon-btn s20" data-act="mh-edit" data-k="${kind}" data-id="${x.id}" aria-label="Edit ${esc(x.name)}" title="Edit"><i class="ri-edit-box-line"></i></button><button class="icon-btn s20 danger" data-act="mh-del" data-k="${kind}" data-id="${x.id}" aria-label="Delete ${esc(x.name)}" title="Delete"><i class="ri-delete-bin-6-line"></i></button>`
+    : `<span class="icon-btn s20 mh-lock" role="img" aria-label="Imported from the GP record — read only" title="Imported from the GP record — read only"><i class="ri-lock-line"></i></span>`}</span>`;
   const stChip = s => s === 'Active' ? chip('Active', 't-green', 'ri-checkbox-circle-line') : chip(s, 't-grey', 'ri-history-line');
   const sevChip = s => chip(s, s === 'High' ? 't-red' : s === 'Medium' ? 't-orange' : 't-grey');
   const box = (k, icon, t, actions, body, r) => `<section class="card pt-box"><div class="pt-box-h"><h2 class="pt-h"><i class="${icon}"></i>${t}</h2><span class="grow"></span>${actions}<button class="icon-btn s20" data-act="mh-tog" data-k="${k}" aria-expanded="${r.f.mhOpen[k]}" aria-label="${r.f.mhOpen[k] ? 'Collapse' : 'Expand'} ${t}"><i class="${r.f.mhOpen[k] ? 'ri-arrow-up-s-line' : 'ri-arrow-down-s-line'}"></i></button></div>${r.f.mhOpen[k] ? `<div class="pt-box-b">${body}</div>` : ''}</section>`;
@@ -213,6 +217,23 @@
       prov: { prescriber: (x && x.prescriber) || '', org: (x && x.org) || '', infoSrc: (x && x.infoSrc) || '', verify: (x && x.verify) || '' },
       file: (x && x.evidence) || '', attest: !!x };
     mdModal(); };
+  /* ---------- Read a row ----------
+     The table shows what fits; this shows the rest — provenance for a medicine
+     recorded from elsewhere, and the prescription for one that has gone out. */
+  const VIEW = {
+    cond: ['ri-heart-add-line', 'Medical condition', x => [['Condition', x.name], ['Description', x.desc], ['Status', x.status], ['Source', x.source], ['Added by', x.by]]],
+    alg: ['ri-virus-line', 'Allergy', x => [['Allergy', x.name], ['Severity', x.severity], ['Reaction', x.reaction], ['Source', x.source], ['Added by', x.by]]],
+    meds: ['ri-capsule-line', 'Medication', x => [['Medicine', x.name], ['Dosage', `${x.dose} ${x.unit}`], ['Frequency', x.freq], ['Status', x.status],
+      ['Start date', PT.dmy(x.start)], ['End date', x.end ? PT.dmy(x.end) : 'Ongoing'], ['Source', x.source], ['Added by', x.by],
+      ...(x.cd ? [['Controlled drug', 'Yes']] : [])]]
+  };
+  acts['mh-view'] = el => { const k = el.dataset.k, x = rec(cur())[k].find(i => i.id === el.dataset.id); if (!x) return;
+    const [icon, t, rows] = VIEW[k];
+    const extra = k !== 'meds' ? '' : `${x.ext ? `<b class="sub2">Prescribed elsewhere</b>${kv([['Prescriber', esc(x.prescriber)], ['Organisation', esc(x.org)], ['Information source', esc(x.infoSrc || '—')], ['Verification', esc(x.verify || '—')], ['Evidence', x.evidence ? esc(x.evidence) : 'None attached']])}` : ''}
+      ${x.prescribed ? `<b class="sub2">Prescription</b>${kv([['Number', esc(x.script || '—')], ['Issued', esc(x.issued)], ['Prescriber', esc(x.prescriber)], ['Dispatch', esc((CPD[x.dispatch] || ['—'])[0])], ['Fee', x.fee === 'Paid prescription' ? `£${Number(x.feeAmt || 0).toFixed(2)} · ${esc(x.pay || '')} · ${esc(x.payStatus || '')}` : esc(x.fee || 'Free prescription')]])}` : ''}`;
+    App.dialog(modal(icon, esc(x.name), `${t} on this patient’s record`,
+      `${kv(rows(x).map(([a, b]) => [a, esc(b)]))}${extra}`,
+      `<button class="btn outlined lg" data-act="close-modal">Close</button>${editable(x) ? `<button class="btn primary lg" data-act="mh-edit" data-k="${k}" data-id="${x.id}"><i class="ri-edit-box-line"></i>Edit</button>` : ''}`, 'green'), { width: 520 }); };
   acts['mh-add'] = el => el.dataset.k === 'meds' ? mdOpen(null) : mhOpen(el.dataset.k, {});
   acts['mh-edit'] = el => { const x = rec(cur())[el.dataset.k].find(i => i.id === el.dataset.id);
     el.dataset.k === 'meds' ? mdOpen(x) : mhOpen(el.dataset.k, x); };
