@@ -1105,6 +1105,10 @@ tr.fw-off td { color: var(--text-2); }
 .rx-paybox { border: 1px solid var(--field); border-radius: 12px; padding: 14px; }
 .rx-lockcap { margin: -6px 0 0 12px; }
 .rx-hint { margin: -8px 0 0 12px; }
+/* The strength sits under the medicine name rather than running on from it,
+   so the name is what the eye catches first. A touch larger than the house
+   caption, because a dose is read, not skimmed. */
+.mh-meds .cell2 .mh-dose { font-size: 13px; letter-spacing: 0; margin-top: 1px; }
 /* Medical History tables: one rhythm across all three.
    The name column and the last three (Source, Added By, Action) are the same
    width everywhere, so those edges line up down the page; whatever is left
