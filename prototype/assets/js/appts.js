@@ -397,10 +397,10 @@
   }; };
   const payTabs = (M, on, act) => `<b class="sub2">How will this be paid?</b><div class="pt-seg" role="tablist" aria-label="Payment method">${Object.entries(M).map(([k, v]) => `<button type="button" role="tab" aria-selected="${k === on}" class="${k === on ? 'on' : ''}" data-act="${act}" data-v="${k}">${v.t}</button>`).join('')}</div>`;
   const PAY = payMethods('rx');
-  /* Medical History issues repeats of medicines already on the list and needs the
-     same dispensing routes and payment step, so these are shared rather than copied.
-     patients-record.js loads first, so it reads them at click time, not load time. */
-  PT.RXROUTE = RXROUTE; PT.rxPaid = rxPaid; PT.payMethods = payMethods; PT.payTabs = payTabs;
+  /* Create prescription takes the fee the same way an appointment takes its
+     payment, so the step is shared rather than copied. patients-record.js loads
+     first, so it reads these at click time, not load time. */
+  PT.payMethods = payMethods; PT.payTabs = payTabs;
   let rxPend = null;
   const rxPayModal = (a, rx, ai, method) => { rxPend = { a, rx, ai, method }; const P = PAY[method]; const p = a.pid ? PT.pat(a.pid) : null;
     const dur = rx.ongoing ? `Ongoing, from ${PT.dmy(rx.start)}` : `${PT.dmy(rx.start)} to ${PT.dmy(rx.end)}`;

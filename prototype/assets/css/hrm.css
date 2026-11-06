@@ -1158,49 +1158,19 @@ tr.fw-off td { color: var(--text-2); }
 .cp-sig-clear { position: absolute; top: 8px; right: 8px; }
 @media (max-width: 680px) { .cp-row3 { grid-template-columns: 1fr; } }
 
-/* ---------- The prescribe dialog, laid out as its own thing ----------
-   Scoped to .rx-dlg so no other dialog in the app moves. */
-.pt-dlg.rx-dlg { display: grid; grid-template-columns: auto 1fr; column-gap: 18px; align-items: start; padding: 32px; }
-.rx-dlg > .pt-dlg-ic { grid-column: 1; grid-row: 1 / span 2; width: 56px; height: 56px; font-size: 26px; margin: 0; }
-.rx-dlg > h2 { grid-column: 2; grid-row: 1; align-self: end; font-size: 23px; }
-.rx-dlg > .pt-dlg-sub { grid-column: 2; grid-row: 2; margin: 3px 0 0; font-size: 14.5px; }
-.rx-dlg > form, .rx-dlg > .pt-dlg-foot { grid-column: 1 / -1; }
-.rx-dlg > form { margin-top: 22px; }
-.rx-dlg .sub2 { font-size: 16px; }
-/* the alert, a rule, then the heading and the list under it */
-.rx-dlg .rx-alg { align-items: center; gap: 14px; padding: 14px 18px; font-size: 14px; }
-.rx-dlg .rx-alg > i { font-size: 25px; }
-.rx-dlg .rx-alg > span { border-left: 1px solid #F0C894; padding-left: 15px; }
-.rx-dlg .rx-alg b { font-size: 15px; margin-bottom: 3px; }
-/* the facts: two columns, a rule between, every line led by its own icon */
-.rx-grid { display: grid; grid-template-columns: .85fr 1.15fr; }
-.rx-grid .rx-col { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
-.rx-grid .rx-col + .rx-col { border-left: 1px solid var(--divider); padding-left: 18px; margin-left: 18px; }
-.rx-fact { display: flex; align-items: center; gap: 12px; font-size: 14px; color: var(--text-2); min-width: 0; }
-.rx-fact .rx-ic { width: 34px; height: 34px; flex: none; border-radius: 10px; background: var(--grey-50); border: 1px solid var(--divider); color: var(--text-2); display: grid; place-items: center; font-size: 17px; }
-.rx-fact b { color: var(--text); font-weight: 600; }
-/* the route and payment pickers fill the width, with a hairline between the ones not chosen */
-.rx-dlg .pt-seg { display: flex; width: 100%; padding: 6px; gap: 0; flex-wrap: nowrap; }
-.rx-dlg .pt-seg button { position: relative; flex: 1 1 0; justify-content: center; padding: 12px 10px; font-size: 14px; min-width: 0; }
-.rx-dlg .pt-seg button:not(.on) + button:not(.on)::before { content: ''; position: absolute; left: 0; top: 50%; transform: translateY(-50%); width: 1px; height: 22px; background: var(--hairline); }
-.rx-dlg .ap-sub { margin: 0; padding: 14px 18px; border-radius: 12px; }
-/* the one thing being asked for wears its label outside the box */
-.rx-price { display: grid; grid-template-columns: 170px 1fr; align-items: center; gap: 16px; }
-.rx-price > label { font-size: 15px; font-weight: 600; color: var(--text); }
-.rx-price > label b { color: var(--error); font-weight: 400; }
-.rx-dlg .pt-note { align-items: center; gap: 14px; padding: 14px 18px; font-size: 14px; }
-.rx-dlg .pt-note > i { font-size: 21px; }
-.rx-dlg .pt-note > span { border-left: 1px solid rgba(11,79,121,.22); padding-left: 15px; }
-.rx-dlg .pt-dlg-foot { display: flex; justify-content: flex-end; gap: 14px; margin-top: 26px; }
-.rx-dlg .pt-dlg-foot .btn { min-width: 168px; border-radius: 999px; }
-@media (max-width: 680px) {
-  .pt-dlg.rx-dlg { padding: 22px; }
-  .rx-grid { grid-template-columns: 1fr; gap: 10px; }
-  .rx-grid .rx-col + .rx-col { border-left: 0; padding-left: 0; margin-left: 0; }
-  .rx-price { grid-template-columns: 1fr; gap: 8px; }
-  .rx-dlg .pt-seg { flex-wrap: wrap; }
-  .rx-dlg .pt-dlg-foot .btn { min-width: 0; flex: 1 1 0; }
-}
+/* the allergy check, wherever it appears: the alert, a rule, then the list */
+.rx-alg { align-items: center; gap: 14px; padding: 13px 16px; font-size: 13.5px; }
+.rx-alg > i { font-size: 23px; }
+.rx-alg > span { border-left: 1px solid #F0C894; padding-left: 14px; }
+.rx-alg b { font-size: 14.5px; margin-bottom: 3px; }
+/* one medicine inside Add medication; several of these stack up */
+.md-row { border: 1px solid var(--divider); border-radius: 14px; padding: 14px; display: flex; flex-direction: column; gap: 14px; }
+.md-row-h { display: flex; align-items: center; justify-content: space-between; margin-bottom: -4px; }
+.md-row-h b { font-size: 14px; color: var(--text-2); font-weight: 600; }
+.md-cd { border: 1px solid var(--field); border-radius: 12px; min-height: 56px; padding-right: 14px; }
+.md-more { justify-content: center; }
+.md-seg { display: flex; width: 100%; padding: 5px; }
+.md-seg button { flex: 1 1 0; justify-content: center; padding: 10px; font-size: 13.5px; }
 /* Prescribing is the row's own action, so it carries the brand colour; edit stays
    neutral and delete stays red. */
 .row-actions .mh-rx-btn { color: var(--primary); }
