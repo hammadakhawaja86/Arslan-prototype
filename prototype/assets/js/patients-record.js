@@ -116,10 +116,16 @@
   const editable = x => x.by !== 'GP';
   /* what a row shows once this practice has issued it: where it goes, and where
      the money stands — amber while a payment link is outstanding, green once in */
-  const issTags = m => { const R = (PT.RXROUTE || {})[m.route]; if (!R) return '';
-    return `<span class="row g4 mh-rxtags">${chip(R[0], 't-blue', R[1])}${m.pay
-      ? chip(`${m.pay} · £${Number(m.price || 0).toFixed(2)}`, m.payStatus === 'Paid' ? 't-green' : 't-orange', m.payStatus === 'Paid' ? 'ri-checkbox-circle-line' : 'ri-time-line')
-      : chip('Paid at pharmacy', 't-grey', 'ri-store-2-line')}</span>`; };
+  const issTags = m => { const R = (PT.RXROUTE || {})[m.route], D = CPD[m.dispatch], t = [];
+    if (R) t.push(chip(R[0], 't-blue', R[1]));
+    else if (D) t.push(chip(D[0], 't-blue', D[1]));
+    if (m.script) t.push(chip(m.script, 't-grey', 'ri-file-list-3-line'));
+    if (m.pay) t.push(chip(`${m.pay} \u00b7 \u00a3${Number(m.price || 0).toFixed(2)}`, m.payStatus === 'Paid' ? 't-green' : 't-orange', m.payStatus === 'Paid' ? 'ri-checkbox-circle-line' : 'ri-time-line'));
+    else if (m.fee) t.push(m.fee === 'Paid prescription'
+      ? chip(`Fee \u00b7 \u00a3${Number(m.feeAmt || 0).toFixed(2)}`, 't-orange', 'ri-bank-card-line')
+      : chip('Free prescription', 't-grey', 'ri-price-tag-3-line'));
+    else if (R) t.push(chip('Paid at pharmacy', 't-grey', 'ri-store-2-line'));
+    return t.length ? `<span class="row g4 wrap mh-rxtags">${t.join('')}</span>` : ''; };
   /* Prescribing issues the medicine from this practice. It does not edit the entry,
      so it is offered on GP rows too, where editing is locked. */
   const issueBtn = x => `<button class="icon-btn s20 mh-rx-btn" data-act="mh-issue" data-id="${x.id}" aria-label="Prescribe ${esc(x.name)}" title="${x.prescribed ? 'Issue again' : 'Prescribe'}"><i class="ri-capsule-line"></i></button>`;
@@ -128,9 +134,10 @@
   const sevChip = s => chip(s, s === 'High' ? 't-red' : s === 'Medium' ? 't-orange' : 't-grey');
   const box = (k, icon, t, actions, body, r) => `<section class="card pt-box"><div class="pt-box-h"><h2 class="pt-h"><i class="${icon}"></i>${t}</h2><span class="grow"></span>${actions}<button class="icon-btn s20" data-act="mh-tog" data-k="${k}" aria-expanded="${r.f.mhOpen[k]}" aria-label="${r.f.mhOpen[k] ? 'Collapse' : 'Expand'} ${t}"><i class="${r.f.mhOpen[k] ? 'ri-arrow-up-s-line' : 'ri-arrow-down-s-line'}"></i></button></div>${r.f.mhOpen[k] ? `<div class="pt-box-b">${body}</div>` : ''}</section>`;
   PT.tabs['medical-history'] = p => { const r = rec(p); const meds = r.meds.filter(m => r.f.medView === 'Active' ? m.status === 'Active' : m.status !== 'Active');
+    const sel = new Set(cpSelIds(r).filter(id => meds.some(m => m.id === id))), allOn = meds.length > 0 && sel.size === meds.length, someOn = sel.size > 0;
     return title('Medical History') + `<div class="stack g16">
       ${box('c', 'ri-heart-pulse-line', `Medical Conditions (${r.cond.filter(c => c.status === 'Active').length} Active)`, `<button class="btn primary" data-act="mh-add" data-k="cond"><i class="ri-add-circle-line"></i>Add Medical Condition</button>`, `<div class="mh-cond">${table(['Condition', 'Description', 'Status', 'Source', 'Added By', 'Action'], r.cond.map(c => `<tr><td><b class="fw5">${esc(c.name)}</b></td><td>${esc(c.desc)}</td><td>${stChip(c.status)}</td><td>${esc(c.source)}</td><td>${esc(c.by)}</td><td>${rowAct('cond', c)}</td></tr>`), 6, 'No medical conditions recorded.')}</div>`, r)}
-      ${box('m', 'ri-capsule-line', 'Medications', `${seg('mh-medview', [['Active', 'Active'], ['Historical', 'Historical']], r.f.medView)}<button class="btn outlined" data-act="mh-rx"><i class="ri-capsule-line"></i>Add Prescription</button><button class="btn primary" data-act="mh-add" data-k="meds"><i class="ri-add-circle-line"></i>Add Medication</button>`, `<div class="mh-meds">${table(['Medication', 'Frequency', 'Status', 'Start Date', 'End Date', 'Source', 'Added By', 'Action'], meds.map(m => `<tr><td><span class="cell2"><b class="fw5">${esc(m.name)}</b><small class="mh-dose">${esc(m.dose)} ${esc(m.unit)}</small>${!m.ext && m.prescribed ? `<small>Issued by ${esc(m.prescriber)} · ${esc(m.org)} · ${esc(m.issued)}</small>${issTags(m)}` : ''}${m.ext ? `<small>Prescribed by ${esc(m.prescriber)} · ${esc(m.org)}</small><span class="row g4 mh-rxtags">${/^Patient/.test(m.verify || '') ? chip('Unverified', 't-orange', 'ri-error-warning-line') : chip('Verified', 't-green', 'ri-verified-badge-line')}${m.cd ? chip('Controlled drug', 't-red', 'ri-shield-keyhole-line') : ''}</span>` : ''}</span></td><td>${esc(m.freq)}</td><td>${stChip(m.status)}</td><td>${PT.dmy(m.start)}</td><td>${m.end ? PT.dmy(m.end) : '—'}</td><td>${esc(m.source)}</td><td>${esc(m.by)}</td><td>${rowAct('meds', m)}</td></tr>`), 8, r.f.medView === 'Active' ? 'No active medications.' : 'No past medications.')}</div>`, r)}
+      ${box('m', 'ri-capsule-line', 'Medications', `${seg('mh-medview', [['Active', 'Active'], ['Historical', 'Historical']], r.f.medView)}<button class="btn outlined" data-act="mh-rx"><i class="ri-capsule-line"></i>Add Prescription</button><button class="btn outlined" data-act="cp-open"><i class="ri-quill-pen-line"></i>Create prescription${someOn ? ` (${sel.size})` : ''}</button><button class="btn primary" data-act="mh-add" data-k="meds"><i class="ri-add-circle-line"></i>Add Medication</button>`, `<div class="mh-meds">${table([`<label class="cbx cp-box ${allOn ? '' : someOn ? 'half' : ''}"><input type="checkbox" data-ch="cp-all" ${allOn ? 'checked' : ''} aria-label="Select all medications"></label>Medication`, 'Frequency', 'Status', 'Start Date', 'End Date', 'Source', 'Added By', 'Action'], meds.map(m => `<tr><td><span class="row g10 cp-cell"><label class="cbx cp-box"><input type="checkbox" data-ch="cp-pick" data-id="${m.id}" ${sel.has(m.id) ? 'checked' : ''} aria-label="Select ${esc(m.name)}"></label><span class="cell2"><b class="fw5">${esc(m.name)}</b><small class="mh-dose">${esc(m.dose)} ${esc(m.unit)}</small>${!m.ext && m.prescribed ? `<small>Issued by ${esc(m.prescriber)} · ${esc(m.org)} · ${esc(m.issued)}</small>${issTags(m)}` : ''}${m.ext ? `<small>Prescribed by ${esc(m.prescriber)} · ${esc(m.org)}</small><span class="row g4 mh-rxtags">${/^Patient/.test(m.verify || '') ? chip('Unverified', 't-orange', 'ri-error-warning-line') : chip('Verified', 't-green', 'ri-verified-badge-line')}${m.cd ? chip('Controlled drug', 't-red', 'ri-shield-keyhole-line') : ''}</span>` : ''}</span></span></td><td>${esc(m.freq)}</td><td>${stChip(m.status)}</td><td>${PT.dmy(m.start)}</td><td>${m.end ? PT.dmy(m.end) : '—'}</td><td>${esc(m.source)}</td><td>${esc(m.by)}</td><td>${rowAct('meds', m)}</td></tr>`), 8, r.f.medView === 'Active' ? 'No active medications.' : 'No past medications.')}</div>`, r)}
       ${box('a', 'ri-virus-line', 'Allergies', `<button class="btn primary" data-act="mh-add" data-k="alg"><i class="ri-add-circle-line"></i>Add New Allergy</button>`, `<div class="mh-alg">${table(['Allergy', 'Severity', 'Reaction', 'Source', 'Added By', 'Action'], r.alg.map(a => `<tr><td><b class="fw5">${esc(a.name)}</b></td><td>${sevChip(a.severity)}</td><td>${esc(a.reaction)}</td><td>${esc(a.source)}</td><td>${esc(a.by)}</td><td>${rowAct('alg', a)}</td></tr>`), 6, 'No known allergies recorded.')}</div>`, r)}</div>`; };
   acts['mh-tog'] = el => { const f = rec(cur()).f.mhOpen; f[el.dataset.k] = !f[el.dataset.k]; App.render(); };
   acts['mh-medview'] = el => { rec(cur()).f.medView = el.dataset.v; App.render(); };
@@ -289,6 +296,126 @@
     rec(cur()).f.medView = d.status === 'Active' ? 'Active' : 'Historical';
     App.closeModal(); App.render();
     App.snack(x ? `${d.name} updated.` : `${d.name} recorded\nAdded to this patient’s medications as an external prescription — not issued by this clinic.`); };
+
+  /* ---------- Create prescription ----------
+     The signed, issued kind: pick medicines off the patient's own list, say how
+     each is to be taken, choose how it reaches them, then sign for it. Modelled
+     on the developed app's Create prescription dialog. */
+  const CPD = {
+    give: ['Give to patient', 'ri-user-shared-2-line', 'The patient receives the signed prescription and gets the medicine from any pharmacy.'],
+    pharmacy: ['Send to a pharmacy for home delivery', 'ri-store-2-line', 'A pharmacy linked to this business receives it and delivers to the patient.'],
+    stock: ['Dispense from our stock', 'ri-archive-2-line', 'Your staff dispense from Inventory, then hand over, deliver or post it.']
+  };
+  const CPUNIT = ['tablets', 'capsules', 'ml', 'mg', 'sachets', 'puffs', 'patches'];
+  let cp = null;
+
+  /* the warning the developed app shows: this medicine has gone out before */
+  const cpIssued = (r, m) => !!m.prescribed || (r.scripts || []).some(x => x.items.some(i => i.id === m.id));
+  const cpSelIds = r => (r.f.rxSel || []).filter(id => r.meds.some(m => m.id === id));
+
+  /* read the form back before any re-render, so nothing typed is lost */
+  const cpRead = () => { const f = App.$('#pt-form'); if (!cp || !f) return;
+    const d = Object.fromEntries(new FormData(f));
+    Object.keys(cp.sel).forEach(id => cp.sel[id] = { qty: d['q_' + id] ?? '', unit: d['u_' + id] || CPUNIT[0], dur: d['dur_' + id] ?? '', dirs: d['dir_' + id] ?? '' });
+    if (d.dispatch) cp.dispatch = d.dispatch;
+    if (d.fee) cp.fee = d.fee;
+    cp.feeAmt = d.feeAmt ?? cp.feeAmt; cp.reg = d.reg ?? cp.reg; cp.attest = !!d.attest; };
+
+  const cpMedCard = (r, m) => { const v = cp.sel[m.id], on = !!v;
+    return `<div class="cp-med ${on ? 'on' : ''}">
+      <label class="cbx cp-pick"><input type="checkbox" data-ch="cp-tick" data-id="${m.id}" ${on ? 'checked' : ''}><span class="cp-med-h"><b>${esc(m.name)} ${esc(m.dose)} ${esc(m.unit)}</b><small>${esc(m.dose)} ${esc(m.unit)} · ${esc(m.freq)}</small></span></label>
+      ${on ? `${cpIssued(r, m) ? `<div class="pt-warn cp-dupe"><i class="ri-alert-line"></i><span>This medication is already on an issued prescription for this patient.</span></div>` : ''}
+      <div class="cp-row3">${F('Quantity', 'q_' + m.id, v.qty, { req: true, type: 'number' })}${S('Unit', 'u_' + m.id, CPUNIT, v.unit || CPUNIT[0], { req: true })}${F('Duration (days)', 'dur_' + m.id, v.dur, { type: 'number' })}</div>
+      ${F('Directions', 'dir_' + m.id, v.dirs, { req: true, area: true, rows: 3, max: 200, ph: 'e.g. Take one tablet twice daily with food' })}` : ''}
+    </div>`; };
+
+  const cpModal = () => { const p = cur(), r = rec(p), me = App.me().name;
+    const meds = r.meds.filter(m => r.f.medView === 'Active' ? m.status === 'Active' : m.status !== 'Active');
+    App.dialog(`<div class="cp-dlg">
+      <div class="dlg-head"><h2 id="dlg-title">Create prescription</h2><button class="icon-btn s20" data-act="close-modal" aria-label="Close"><i class="ri-close-line"></i></button></div>
+      <form class="dlg-body stack g16" id="pt-form" onsubmit="return false">
+        <b class="cp-step">1. Medications</b>
+        <div class="stack g8" id="cp-meds">${meds.length ? meds.map(m => cpMedCard(r, m)).join('') : '<p class="caption">No medications on this list to prescribe.</p>'}</div>
+        <b class="cp-step">2. Dispatch</b>
+        <div class="stack g10" id="cp-dispatch">${Object.entries(CPD).map(([k, [t, , d]]) => `<label class="cp-radio ${k === cp.dispatch ? 'on' : ''}"><input type="radio" name="dispatch" value="${k}" data-ch="cp-dispatch" ${k === cp.dispatch ? 'checked' : ''}><span><b>${t}</b><small>${d}</small></span></label>`).join('')}</div>
+        <div class="stack g4">${App.field('Prescription fee', `<select name="fee" data-ch="cp-fee">${['Free prescription', 'Paid prescription'].map(o => `<option ${o === cp.fee ? 'selected' : ''}>${o}</option>`).join('')}</select>`, { req: true, cls: 'select' })}<span class="caption cp-hint">A paid prescription creates a charge the patient pays to the business.</span></div>
+        ${cp.fee === 'Paid prescription' ? F('Fee (£)', 'feeAmt', cp.feeAmt, { req: true, type: 'number', step: '0.01', ph: '0.00' }) : ''}
+        <b class="cp-step">3. Sign</b>
+        <div class="g2">${App.field('Prescriber', `<input value="${esc(me)}" readonly tabindex="-1">`, { cls: 'dis' })}${F('Registration number (e.g. GMC)', 'reg', cp.reg, { req: true })}</div>
+        <label class="cbx cp-attest" id="cp-attest"><input type="checkbox" name="attest" ${cp.attest ? 'checked' : ''}><span>I confirm that I am a registered healthcare professional, that I have assessed this patient, and that I am authorised to prescribe the medicines listed above. The details above are correct, and the signature below is mine.</span></label>
+        <div class="pt-seg cp-sigseg" role="tablist" aria-label="Signature">${[['draw', 'Draw'], ['upload', 'Upload image']].map(([k, t]) => `<button type="button" role="tab" aria-selected="${k === cp.sigMode}" class="${k === cp.sigMode ? 'on' : ''}" data-act="cp-sigmode" data-v="${k}">${t}</button>`).join('')}</div>
+        <div id="cp-sigwrap">${cp.sigMode === 'draw'
+          ? `<div class="cp-sig ${cp.strokes.length ? 'has' : ''}"><canvas id="cp-sig"></canvas><span class="caption cp-sig-hint" id="cp-sig-hint" ${cp.strokes.length ? 'hidden' : ''}>Sign here with the mouse or a finger</span><button type="button" class="btn text sm cp-sig-clear" data-act="cp-sigclear">Clear</button></div>`
+          : `<label class="dropzone pt-drop ${cp.sigFile ? 'has' : ''}" id="cp-drop"><input type="file" accept=".jpg,.jpeg,.png" hidden data-ch="cp-sigfile"><i class="ri-upload-cloud-2-line"></i><b>${cp.sigFile ? esc(cp.sigFile) : 'Upload a signature image'}</b><span class="caption">JPEG or PNG</span><span class="btn outlined sm pt-dark">Browse File</span></label>`}</div>
+      </form>
+      <div class="dlg-foot"><button class="btn text lg" data-act="close-modal">Cancel</button><button class="btn primary lg" data-act="cp-go">Sign and issue</button></div>
+    </div>`, { width: 760, locked: true });
+    cpWire(); };
+
+  /* the canvas is redrawn from the strokes we keep, so a re-render never wipes it */
+  const cpWire = () => { const c = App.$('#cp-sig'); if (!c) return;
+    const box = c.parentElement, ctx = c.getContext('2d'), dpr = window.devicePixelRatio || 1;
+    const w = box.clientWidth, h = box.clientHeight;
+    c.width = w * dpr; c.height = h * dpr; c.style.width = w + 'px'; c.style.height = h + 'px';
+    ctx.scale(dpr, dpr); ctx.lineWidth = 2.4; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.strokeStyle = '#17202A';
+    const redraw = () => { ctx.clearRect(0, 0, w, h); cp.strokes.forEach(st => { ctx.beginPath(); st.forEach((q, i) => i ? ctx.lineTo(q.x, q.y) : ctx.moveTo(q.x, q.y)); if (st.length === 1) ctx.lineTo(st[0].x + .1, st[0].y); ctx.stroke(); }); };
+    redraw();
+    const at = e => { const b = c.getBoundingClientRect(); return { x: e.clientX - b.left, y: e.clientY - b.top }; };
+    let st = null;
+    c.addEventListener('pointerdown', e => { e.preventDefault(); try { c.setPointerCapture(e.pointerId); } catch (_) { /* a pointer the browser no longer tracks */ } st = [at(e)]; cp.strokes.push(st); box.classList.add('has'); App.$('#cp-sig-hint').hidden = true; redraw(); });
+    c.addEventListener('pointermove', e => { if (!st) return; st.push(at(e)); redraw(); });
+    ['pointerup', 'pointercancel'].forEach(k => c.addEventListener(k, () => { st = null; })); };
+
+  acts['cp-open'] = () => { const r = rec(cur()), picked = cpSelIds(r);
+    cp = { sel: {}, dispatch: 'give', fee: 'Free prescription', feeAmt: '', reg: '', attest: false, sigMode: 'draw', strokes: [], sigFile: '' };
+    picked.forEach(id => { const m = r.meds.find(x => x.id === id); cp.sel[id] = { qty: '', unit: CPUNIT[0], dur: '', dirs: '' }; });
+    cpModal(); };
+  chs['cp-tick'] = el => { cpRead(); const id = el.dataset.id;
+    if (el.checked) cp.sel[id] = cp.sel[id] || { qty: '', unit: CPUNIT[0], dur: '', dirs: '' }; else delete cp.sel[id];
+    cpModal(); };
+  chs['cp-dispatch'] = el => { cpRead(); cp.dispatch = el.value; cpModal(); };
+  chs['cp-fee'] = el => { cpRead(); cp.fee = el.value; cpModal(); };
+  acts['cp-sigmode'] = el => { cpRead(); cp.sigMode = el.dataset.v; cpModal(); };
+  acts['cp-sigclear'] = () => { cpRead(); cp.strokes = []; cpModal(); };
+  chs['cp-sigfile'] = el => { const f = el.files[0]; if (!f) return;
+    if (f.size > 5 * 1024 * 1024) return App.snack('That file is over 5 MB. Choose a smaller image.', 'error');
+    cpRead(); cp.sigFile = f.name; cpModal(); };
+
+  acts['cp-go'] = () => { cpRead(); const r = rec(cur()), ids = Object.keys(cp.sel);
+    if (!ids.length) return App.snack('Tick at least one medication to prescribe.', 'error');
+    const need = [];
+    ids.forEach(id => { const v = cp.sel[id]; if (!String(v.qty).trim()) need.push('q_' + id); if (!String(v.dirs).trim()) need.push('dir_' + id); });
+    if (cp.fee === 'Paid prescription' && !(+cp.feeAmt > 0)) need.push('feeAmt');
+    if (!String(cp.reg).trim()) need.push('reg');
+    App.$$('#pt-form .field').forEach(f => { const n = f.querySelector('[name]')?.name; f.classList.toggle('err', need.includes(n)); });
+    if (need.length) { App.$(`#pt-form [name="${need[0]}"]`)?.focus(); return App.snack('Fill in the fields marked in red before signing.', 'error'); }
+    const at = App.$('#cp-attest'); at.classList.toggle('err', !cp.attest);
+    if (!cp.attest) return App.snack('Confirm the declaration before signing.', 'error');
+    const signed = cp.sigMode === 'draw' ? cp.strokes.length > 0 : !!cp.sigFile;
+    App.$('#cp-sigwrap').firstElementChild.classList.toggle('err', !signed);
+    if (!signed) return App.snack(cp.sigMode === 'draw' ? 'Draw your signature before issuing.' : 'Upload a signature image before issuing.', 'error');
+
+    const me = App.me().name, org = App.biz ? App.biz().name : 'LeafEase';
+    const issued = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+    const no = 'RX-' + String(1000 + ((r.scripts || []).length + 1)).slice(-4);
+    const items = ids.map(id => { const m = r.meds.find(x => x.id === id), v = cp.sel[id];
+      return { id, name: m.name, dose: m.dose, unit: m.unit, qty: +v.qty, qtyUnit: v.unit, dur: v.dur, dirs: v.dirs }; });
+    (r.scripts = r.scripts || []).unshift({ no, at: issued, by: me, org, reg: cp.reg, dispatch: cp.dispatch,
+      fee: cp.fee, feeAmt: cp.fee === 'Paid prescription' ? +cp.feeAmt : 0, sig: cp.sigMode === 'draw' ? 'Drawn' : cp.sigFile, items });
+    items.forEach(it => { const m = r.meds.find(x => x.id === it.id);
+      Object.assign(m, { prescribed: true, prescriber: me, org, issued, dispatch: cp.dispatch, script: no,
+        fee: cp.fee, feeAmt: cp.fee === 'Paid prescription' ? +cp.feeAmt : 0 }); });
+    const disp = CPD[cp.dispatch][0];
+    r.f.rxSel = []; cp = null; App.closeModal(); App.render();
+    App.snack(`Prescription ${no} issued\n${items.length} ${items.length === 1 ? 'medicine' : 'medicines'} signed by ${me} · ${disp}.`); };
+
+  /* ticking rows in the table is what fills the Create prescription button */
+  chs['cp-pick'] = el => { const r = rec(cur()), set = new Set(r.f.rxSel || []);
+    el.checked ? set.add(el.dataset.id) : set.delete(el.dataset.id);
+    r.f.rxSel = [...set]; App.render(); };
+  chs['cp-all'] = el => { const p = cur(), r = rec(p);
+    const view = r.meds.filter(m => r.f.medView === 'Active' ? m.status === 'Active' : m.status !== 'Active');
+    r.f.rxSel = el.checked ? view.map(m => m.id) : []; App.render(); };
 
   /* ---------- Documents ---------- */
   const CATS = ['Blood Reports', 'Documents', 'Review Forms', 'Questionnaires', 'Consent Forms'];
