@@ -9,19 +9,20 @@
   const kv = rows => `<dl class="pt-kv">${rows.map(([k, v]) => `<div><dt>${k}</dt><dd>${v}</dd></div>`).join('')}</dl>`;
   /* modal pieces shared with patients-care.js */
   const modal = PT.modal = (icon, t, sub, body, foot, tone = '', cls = '') => `<div class="pt-dlg ${cls}"><button class="icon-btn s20 pt-dlg-x" data-act="close-modal" aria-label="Close"><i class="ri-close-line"></i></button>${icon ? `<span class="pt-dlg-ic ${tone}"><i class="${icon}"></i></span>` : ''}<h2 id="dlg-title">${t}</h2>${sub ? `<p class="pt-dlg-sub">${sub}</p>` : ''}<form class="stack g16" id="pt-form" onsubmit="return false">${body}</form><div class="pt-dlg-foot">${foot}</div></div>`;
-  const F = PT.F = (label, name, val = '', o = {}) => `<div class="stack g4">${App.field(label, o.area ? `<textarea name="${name}" rows="${o.rows || 4}" maxlength="${o.max || 300}" data-in="pt-count" placeholder="${o.ph || ''}">${esc(val)}</textarea>` : `<input name="${name}" type="${o.type || 'text'}" value="${esc(val)}" placeholder="${o.ph || ''}" ${o.step ? `step="${o.step}"` : ''}>`, { req: o.req, cls: o.area ? 'multi' : '' })}${o.area ? `<span class="caption pt-count">Character limit: ${o.max || 300}${val ? ` · ${val.length} used` : ''}</span>` : ''}</div>`;
-  const S = PT.S = (label, name, opts, val = '', o = {}) => App.field(label, `<select name="${name}">${o.ph ? `<option value="">${o.ph}</option>` : ''}${opts.map(x => `<option ${x === val ? 'selected' : ''}>${esc(x)}</option>`).join('')}</select>`, { req: o.req, cls: 'select' });
-  const formData = PT.formData = () => Object.fromEntries(new FormData(App.$('#pt-form')));
-  /* Medical History forms carry their label above the box rather than notched into
-     its border: a dense clinical form reads faster when the question is a line of
-     its own, and a required mark sits beside the question instead of on the frame. */
+  /* Form fields carry their label above the box rather than notched into its
+     border: a dense form reads faster when the question is a line of its own,
+     and a required mark sits beside the question instead of on the frame.
+     App.field stays as it is, so toolbars and search boxes are unaffected. */
   const ftId = n => 'ft-' + String(n).replace(/[^a-z0-9_-]/gi, '');
-  const lab = (t, n, o) => `<label for="${ftId(n)}"${o.req ? ' class="req"' : ''}>${t}${o.req ? ' <b>*</b>' : ''}</label>`;
-  const FT = PT.FT = (t, n, v = '', o = {}) => `<div class="ft">${lab(t, n, o)}${App.field('', o.area
-    ? `<textarea id="${ftId(n)}" name="${n}" rows="${o.rows || 3}" maxlength="${o.max || 300}" placeholder="${o.ph || ''}">${esc(v)}</textarea>`
-    : `<input id="${ftId(n)}" name="${n}" type="${o.type || 'text'}" value="${esc(v)}" placeholder="${o.ph || ''}" ${o.step ? `step="${o.step}"` : ''} ${o.attrs || ''}>`,
-    { cls: (o.area ? 'multi ' : '') + (o.cls || '') })}</div>`;
-  const ST = PT.ST = (t, n, opts, v = '', o = {}) => `<div class="ft">${lab(t, n, o)}${App.field('', `<select id="${ftId(n)}" name="${n}" ${o.attrs || ''}>${o.ph ? `<option value="">${o.ph}</option>` : ''}${opts.map(x => `<option ${x === v ? 'selected' : ''}>${esc(x)}</option>`).join('')}</select>`, { cls: 'select' })}</div>`;
+  const lab = (t, n, o) => t ? `<label for="${ftId(n)}">${t}${o.req ? ' <b>*</b>' : ''}</label>` : '';
+  const F = PT.F = (label, name, val = '', o = {}) => { const max = o.max || 300;
+    return `<div class="ft">${lab(label, name, o)}${App.field('', o.area
+      ? `<textarea id="${ftId(name)}" name="${name}" rows="${o.rows || 4}" maxlength="${max}" data-in="pt-count" placeholder="${o.ph || ''}">${esc(val)}</textarea>`
+      : `<input id="${ftId(name)}" name="${name}" type="${o.type || 'text'}" value="${esc(val)}" placeholder="${o.ph || ''}" ${o.step ? `step="${o.step}"` : ''} ${o.attrs || ''}>`,
+      { cls: (o.area ? 'multi ' : '') + (o.cls || '') })}${o.area ? `<span class="caption pt-count">Character limit: ${max}${val ? ` \u00b7 ${String(val).length} used` : ''}</span>` : ''}</div>`; };
+  const S = PT.S = (label, name, opts, val = '', o = {}) => `<div class="ft">${lab(label, name, o)}${App.field('', `<select id="${ftId(name)}" name="${name}" ${o.attrs || ''}>${o.ph ? `<option value="">${o.ph}</option>` : ''}${opts.map(x => `<option ${x === val ? 'selected' : ''}>${esc(x)}</option>`).join('')}</select>`, { cls: 'select ' + (o.cls || '') })}</div>`;
+  const FT = PT.FT = F, ST = PT.ST = S;
+  const formData = PT.formData = () => Object.fromEntries(new FormData(App.$('#pt-form')));
 
   const needs = PT.needs = (d, keys) => { const miss = keys.filter(k => !String(d[k] || '').trim()); App.$$('#pt-form .field').forEach(f => { const n = f.querySelector('[name]')?.name; f.classList.toggle('err', miss.includes(n)); }); if (miss.length) App.$(`#pt-form [name="${miss[0]}"]`)?.focus(); return !miss.length; };
   ins['pt-count'] = el => { const c = el.closest('.stack')?.querySelector('.pt-count'); if (c) c.textContent = `Character limit: ${el.maxLength} · ${el.value.length} used`; };
@@ -283,9 +284,9 @@
      each is to be taken, choose how it reaches them, then sign for it. Modelled
      on the developed app's Create prescription dialog. */
   const CPD = {
-    give: ['Give to patient', 'ri-user-shared-2-line', 'The patient receives the signed prescription and gets the medicine from any pharmacy.'],
-    pharmacy: ['Send to a pharmacy for home delivery', 'ri-store-2-line', 'A pharmacy linked to this business receives it and delivers to the patient.'],
-    stock: ['Dispense from our stock', 'ri-archive-2-line', 'Your staff dispense from Inventory, then hand over, deliver or post it.']
+    give: ['Give to patient', 'ri-user-shared-2-line', 'Signed prescription for collection from any pharmacy.'],
+    pharmacy: ['Home delivery', 'ri-store-2-line', 'A linked pharmacy receives the prescription and delivers it.'],
+    stock: ['Dispense from practice stock', 'ri-archive-2-line', 'Staff dispense from inventory for handover, delivery or post.']
   };
   const CPUNIT = ['tablets', 'capsules', 'ml', 'mg', 'sachets', 'puffs', 'patches'];
   let cp = null;
@@ -300,22 +301,27 @@
     const d = Object.fromEntries(new FormData(f));
     Object.keys(cp.sel).forEach(id => cp.sel[id] = { qty: d['q_' + id] ?? '', unit: d['u_' + id] || CPUNIT[0], dur: d['dur_' + id] ?? '', dirs: d['dir_' + id] ?? '' });
     if (d.dispatch) cp.dispatch = d.dispatch;
-    if (d.fee) cp.fee = d.fee;
     cp.feeAmt = d.feeAmt ?? cp.feeAmt; cp.reg = d.reg ?? cp.reg; cp.attest = !!d.attest;
     ['receipt', 'receivedBy', 'transferDate', 'txnRef'].forEach(k => { if (d[k] !== undefined) cp.pay[k] = d[k]; }); };
 
-  const cpMedCard = (r, m) => { const v = cp.sel[m.id], on = !!v;
-    return `<div class="cp-med ${on ? 'on' : ''}">
-      <label class="cbx cp-pick"><input type="checkbox" data-ch="cp-tick" data-id="${m.id}" ${on ? 'checked' : ''}><span class="cp-med-h"><b>${esc(m.name)} ${esc(m.dose)} ${esc(m.unit)}</b><small>${esc(m.dose)} ${esc(m.unit)} · ${esc(m.freq)}</small></span></label>
-      ${on ? `<div class="cp-med-b">${cpIssued(r, m) ? `<div class="pt-warn cp-dupe"><i class="ri-alert-line"></i><span>This medication is already on an issued prescription for this patient.</span></div>` : ''}
-      <div class="cp-row3">${FT('Quantity', 'q_' + m.id, v.qty, { req: true, type: 'number' })}${ST('Unit', 'u_' + m.id, CPUNIT, v.unit || CPUNIT[0], { req: true })}${FT('Duration (days)', 'dur_' + m.id, v.dur, { type: 'number' })}</div>
-      ${FT('Directions', 'dir_' + m.id, v.dirs, { req: true, area: true, rows: 3, max: 200, ph: 'e.g. Take one tablet twice daily with food' })}</div>` : ''}
+  const cpStep = (n, t, hint) => `<div class="cp-step"><span class="cp-num">${n}</span><span class="cp-step-t"><b>${t}</b><small>${hint}</small></span></div>`;
+  /* the left column: what the prescription is for, at a glance */
+  const cpPick = (r, m) => { const on = !!cp.sel[m.id];
+    return `<label class="cp-pickcard ${on ? 'on' : ''}"><input type="checkbox" data-ch="cp-tick" data-id="${m.id}" ${on ? 'checked' : ''}><span class="cp-med-h"><b>${esc(m.name)} ${esc(m.dose)} ${esc(m.unit)}</b><small>${esc(m.dose)} ${esc(m.unit)} · ${esc(m.freq)}</small></span></label>`; };
+  /* the band under them: one compact line per medicine chosen */
+  const cpDose = (r, m) => { const v = cp.sel[m.id];
+    return `<div class="cp-dose">
+      <span class="cp-dose-n"><b>${esc(m.name)} ${esc(m.dose)} ${esc(m.unit)}</b>${cpIssued(r, m) ? chip('Already prescribed', 't-orange', 'ri-alert-line') : ''}</span>
+      ${F('Quantity', 'q_' + m.id, v.qty, { req: true, type: 'number' })}
+      ${S('Unit', 'u_' + m.id, CPUNIT, v.unit || CPUNIT[0], { req: true })}
+      ${F('Days', 'dur_' + m.id, v.dur, { type: 'number' })}
+      ${F('Directions', 'dir_' + m.id, v.dirs, { req: true, ph: 'e.g. Take one tablet twice daily with food' })}
     </div>`; };
 
-  const cpStep = (n, t, hint) => `<div class="cp-step"><span class="cp-num">${n}</span><span class="cp-step-t"><b>${t}</b><small>${hint}</small></span></div>`;
   const cpModal = () => { const p = cur(), r = rec(p), me = App.me().name, org = App.biz ? App.biz().name : 'LeafEase';
-    const meds = medList(r), n = Object.keys(cp.sel).length, paid = cp.fee === 'Paid prescription';
-    const sum = [`${n || 'No'} medicine${n === 1 ? '' : 's'}`, CPD[cp.dispatch][0], paid ? `£${(+cp.feeAmt || 0).toFixed(2)} · ${PAYM()[cp.method].t}` : 'Free prescription'].join(' · ');
+    const meds = medList(r), ids = Object.keys(cp.sel), n = ids.length, paid = +cp.feeAmt > 0;
+    const picked = meds.filter(m => cp.sel[m.id]);
+    const sum = [`${n || 'No'} medicine${n === 1 ? '' : 's'}`, CPD[cp.dispatch][0], paid ? `£${(+cp.feeAmt).toFixed(2)} · ${PAYM()[cp.method].t}` : 'No charge'].join(' · ');
     App.dialog(`<div class="cp-dlg">
       <div class="dlg-head cp-head">
         <span class="pt-dlg-ic green cp-ic"><i class="ri-quill-pen-line"></i></span>
@@ -323,36 +329,44 @@
         <button class="icon-btn s20 cp-x" data-act="close-modal" aria-label="Close"><i class="ri-close-line"></i></button>
       </div>
       <form class="dlg-body" id="pt-form" onsubmit="return false">
-        <section class="cp-sec">
-          ${cpStep(1, 'Medications', 'Tick what this prescription is for, then say how each one is taken.')}
-          <div class="stack g8" id="cp-meds">${meds.length ? meds.map(m => cpMedCard(r, m)).join('') : '<p class="caption">No medications on this list to prescribe.</p>'}</div>
+        <div class="cp-grid">
+          <section class="cp-col">
+            ${cpStep(1, 'Medications', 'Select what this prescription is for.')}
+            <div class="cp-list">${meds.length ? meds.map(m => cpPick(r, m)).join('') : '<p class="caption">No medications on this list to prescribe.</p>'}</div>
+          </section>
+          <section class="cp-col">
+            ${cpStep(2, 'Dispatch', 'Choose how the patient receives their medicine.')}
+            <div class="cp-opts">${Object.entries(CPD).map(([k, [t, i, d]]) => `<label class="cp-opt ${k === cp.dispatch ? 'on' : ''}"><input type="radio" name="dispatch" value="${k}" data-ch="cp-dispatch" ${k === cp.dispatch ? 'checked' : ''}><span class="cp-opt-ic"><i class="${i}"></i></span><span class="cp-opt-t"><b>${t}</b><small>${d}</small></span></label>`).join('')}</div>
+            ${F('Prescription fee (£)', 'feeAmt', cp.feeAmt, { req: true, type: 'number', step: '0.01', ph: '0.00', attrs: 'data-in="cp-amt" data-ch="cp-feeamt"' })}
+            <span class="caption cp-hint">Charge applied for this prescription (e.g. NHS, private or practice fee). Leave at 0 for no charge.</span>
+            ${paid ? `<div class="cp-paybox">${PT.payTabs(PAYM(), cp.method, 'cp-pay-m')}${PAYM()[cp.method].body({ ...cp.pay, price: +cp.feeAmt || 0 })}</div>` : ''}
+            <div class="cp-count"><i class="ri-capsule-line"></i>Selected medicines: <b>${n}</b></div>
+          </section>
+        </div>
+        <section class="cp-band">
+          ${cpStep(3, 'Dosage &amp; directions', 'How each medicine chosen above is to be taken.')}
+          ${n ? `<div class="cp-doses">${picked.map(m => cpDose(r, m)).join('')}</div>` : '<p class="caption cp-empty">Tick a medicine on the left and its dosage appears here.</p>'}
         </section>
-        <section class="cp-sec">
-          ${cpStep(2, 'Dispatch', 'How the medicine reaches the patient, and what it costs them.')}
-          <div class="cp-opts">${Object.entries(CPD).map(([k, [t, i, d]]) => `<label class="cp-opt ${k === cp.dispatch ? 'on' : ''}"><input type="radio" name="dispatch" value="${k}" data-ch="cp-dispatch" ${k === cp.dispatch ? 'checked' : ''}><span class="cp-opt-ic"><i class="${i}"></i></span><span class="cp-opt-t"><b>${t}</b><small>${d}</small></span></label>`).join('')}</div>
-          <div class="cp-panel">
-            <div class="g2 cp-fee">${ST('Prescription fee', 'fee', ['Free prescription', 'Paid prescription'], cp.fee, { req: true, attrs: 'data-ch="cp-fee"' })}${paid ? FT('Fee (£)', 'feeAmt', cp.feeAmt, { req: true, type: 'number', step: '0.01', ph: '0.00', attrs: 'data-in="cp-amt"' }) : '<span class="caption cp-hint">A paid prescription creates a charge the patient pays to the business.</span>'}</div>
-            ${paid ? `${PT.payTabs(PAYM(), cp.method, 'cp-pay-m')}${PAYM()[cp.method].body({ ...cp.pay, price: +cp.feeAmt || 0 })}` : ''}
-          </div>
-        </section>
-        <section class="cp-sec">
-          ${cpStep(3, 'Sign', 'The prescriber named here, and this signature, go on the prescription.')}
-          <div class="g2">${`<div class="ft"><label>Prescriber</label>${App.field('', `<input value="${esc(me)}" readonly tabindex="-1">`, { cls: 'dis' })}</div>`}${FT('Registration number (e.g. GMC)', 'reg', cp.reg, { req: true })}</div>
-          <label class="cbx cp-attest" id="cp-attest"><input type="checkbox" name="attest" ${cp.attest ? 'checked' : ''}><span>I confirm that I am a registered healthcare professional, that I have assessed this patient, and that I am authorised to prescribe the medicines listed above. The details above are correct, and the signature below is mine.</span></label>
-          <div class="cp-panel cp-sigpanel">
-            <div class="cp-sig-h"><b class="sub2">Signature</b><div class="pt-seg cp-sigseg" role="tablist" aria-label="Signature">${[['draw', 'Draw'], ['upload', 'Upload image']].map(([k, t]) => `<button type="button" role="tab" aria-selected="${k === cp.sigMode}" class="${k === cp.sigMode ? 'on' : ''}" data-act="cp-sigmode" data-v="${k}">${t}</button>`).join('')}</div></div>
+        <div class="cp-grid">
+          <section class="cp-col">
+            ${cpStep(4, 'Sign', 'The prescriber named here, and this signature, go on the prescription.')}
+            <div class="g2">${`<div class="ft"><label>Prescriber</label>${App.field('', `<input value="${esc(me)}" readonly tabindex="-1">`, { cls: 'dis' })}</div>`}${F('Registration number (e.g. GMC)', 'reg', cp.reg, { req: true })}</div>
+            <label class="cbx cp-attest" id="cp-attest"><input type="checkbox" name="attest" ${cp.attest ? 'checked' : ''}><span>I confirm that I am a registered healthcare professional, that I have assessed this patient, and that I am authorised to prescribe the medicines listed above. The details above are correct, and the signature below is mine.</span></label>
+          </section>
+          <section class="cp-col">
+            <div class="cp-sig-h"><b class="cp-siglab">Signature</b><div class="pt-seg cp-sigseg" role="tablist" aria-label="Signature">${[['draw', 'Draw'], ['upload', 'Upload image']].map(([k, t]) => `<button type="button" role="tab" aria-selected="${k === cp.sigMode}" class="${k === cp.sigMode ? 'on' : ''}" data-act="cp-sigmode" data-v="${k}">${t}</button>`).join('')}</div></div>
             <div id="cp-sigwrap">${cp.sigMode === 'draw'
               ? `<div class="cp-sig ${cp.strokes.length ? 'has' : ''}"><canvas id="cp-sig"></canvas><span class="caption cp-sig-hint" id="cp-sig-hint" ${cp.strokes.length ? 'hidden' : ''}>Sign here with the mouse or a finger</span><button type="button" class="btn text sm cp-sig-clear" data-act="cp-sigclear"><i class="ri-eraser-line"></i>Clear</button></div>`
               : `<label class="dropzone pt-drop ${cp.sigFile ? 'has' : ''}" id="cp-drop"><input type="file" accept=".jpg,.jpeg,.png" hidden data-ch="cp-sigfile"><i class="ri-upload-cloud-2-line"></i><b>${cp.sigFile ? esc(cp.sigFile) : 'Upload a signature image'}</b><span class="caption">JPEG or PNG</span><span class="btn outlined sm pt-dark">Browse File</span></label>`}</div>
-          </div>
-        </section>
+          </section>
+        </div>
       </form>
       <div class="dlg-foot cp-foot">
         <span class="cp-sum"><i class="ri-information-line"></i>${esc(sum)}</span>
         <button class="btn outlined lg" data-act="close-modal">Cancel</button>
         <button class="btn primary lg" data-act="cp-go"><i class="ri-quill-pen-line"></i>Sign and issue</button>
       </div>
-    </div>`, { width: 760, locked: true });
+    </div>`, { width: 1060, locked: true });
     cpWire(); };
 
   /* the canvas is redrawn from the strokes we keep, so a re-render never wipes it */
@@ -370,14 +384,15 @@
     ['pointerup', 'pointercancel'].forEach(k => c.addEventListener(k, () => { st = null; })); };
 
   acts['cp-open'] = () => { const r = rec(cur()), picked = cpSelIds(r);
-    cp = { sel: {}, dispatch: 'give', fee: 'Free prescription', feeAmt: '', method: 'link', pay: {}, reg: '', attest: false, sigMode: 'draw', strokes: [], sigFile: '' };
+    cp = { sel: {}, dispatch: 'give', feeAmt: '', method: 'link', pay: {}, reg: '', attest: false, sigMode: 'draw', strokes: [], sigFile: '' };
     picked.forEach(id => { const m = r.meds.find(x => x.id === id); cp.sel[id] = { qty: '', unit: CPUNIT[0], dur: '', dirs: '' }; });
     cpModal(); };
   chs['cp-tick'] = el => { cpRead(); const id = el.dataset.id;
     if (el.checked) cp.sel[id] = cp.sel[id] || { qty: '', unit: CPUNIT[0], dur: '', dirs: '' }; else delete cp.sel[id];
     cpModal(); };
   chs['cp-dispatch'] = el => { cpRead(); cp.dispatch = el.value; cpModal(); };
-  chs['cp-fee'] = el => { cpRead(); cp.fee = el.value; cpModal(); };
+  /* crossing zero brings the payment step in or takes it away, so the fee settles on change rather than on every keystroke */
+  chs['cp-feeamt'] = el => { const was = +cp.feeAmt > 0; cpRead(); if (was !== (+el.value > 0)) cpModal(); };
   acts['cp-pay-m'] = el => { cpRead(); cp.method = el.dataset.v; cpModal(); };
   /* the locked Amount Received follows the fee as it is typed, so the two never disagree */
   ins['cp-amt'] = el => { const a = App.$('#pt-form .rx-paybox input[readonly]'); if (a) a.value = '£' + (+el.value || 0).toFixed(2); };
@@ -393,8 +408,7 @@
     if (!ids.length) return App.snack('Tick at least one medication to prescribe.', 'error');
     const need = [];
     ids.forEach(id => { const v = cp.sel[id]; if (!String(v.qty).trim()) need.push('q_' + id); if (!String(v.dirs).trim()) need.push('dir_' + id); });
-    if (cp.fee === 'Paid prescription' && !(+cp.feeAmt > 0)) need.push('feeAmt');
-    if (cp.fee === 'Paid prescription') PAYM()[cp.method].need.forEach(k => { if (!String(cp.pay[k] || '').trim()) need.push(k); });
+    if (+cp.feeAmt > 0) PAYM()[cp.method].need.forEach(k => { if (!String(cp.pay[k] || '').trim()) need.push(k); });
     if (!String(cp.reg).trim()) need.push('reg');
     App.$$('#pt-form .field').forEach(f => { const n = f.querySelector('[name]')?.name; f.classList.toggle('err', need.includes(n)); });
     if (need.length) { App.$(`#pt-form [name="${need[0]}"]`)?.focus(); return App.snack('Fill in the fields marked in red before signing.', 'error'); }
@@ -405,17 +419,17 @@
     if (!signed) return App.snack(cp.sigMode === 'draw' ? 'Draw your signature before issuing.' : 'Upload a signature image before issuing.', 'error');
 
     const me = App.me().name, org = App.biz ? App.biz().name : 'LeafEase';
-    const paid = cp.fee === 'Paid prescription', P = PAYM()[cp.method];
+    const paid = +cp.feeAmt > 0, P = PAYM()[cp.method];
     const issued = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
     const no = 'RX-' + String(1000 + ((r.scripts || []).length + 1)).slice(-4);
     const items = ids.map(id => { const m = r.meds.find(x => x.id === id), v = cp.sel[id];
       return { id, name: m.name, dose: m.dose, unit: m.unit, qty: +v.qty, qtyUnit: v.unit, dur: v.dur, dirs: v.dirs }; });
     (r.scripts = r.scripts || []).unshift({ no, at: issued, by: me, org, reg: cp.reg, dispatch: cp.dispatch,
-      fee: cp.fee, feeAmt: paid ? +cp.feeAmt : 0, pay: paid ? P.t : '', payStatus: paid ? P.status : '', ...(paid ? cp.pay : {}),
+      fee: paid ? 'Paid prescription' : 'Free prescription', feeAmt: paid ? +cp.feeAmt : 0, pay: paid ? P.t : '', payStatus: paid ? P.status : '', ...(paid ? cp.pay : {}),
       sig: cp.sigMode === 'draw' ? 'Drawn' : cp.sigFile, items });
     items.forEach(it => { const m = r.meds.find(x => x.id === it.id);
       Object.assign(m, { prescribed: true, prescriber: me, org, issued, dispatch: cp.dispatch, script: no,
-        fee: cp.fee, feeAmt: paid ? +cp.feeAmt : 0, pay: paid ? P.t : '', payStatus: paid ? P.status : '' }); });
+        fee: paid ? 'Paid prescription' : 'Free prescription', feeAmt: paid ? +cp.feeAmt : 0, pay: paid ? P.t : '', payStatus: paid ? P.status : '' }); });
     const disp = CPD[cp.dispatch][0];
     const paidLine = paid ? ` · £${(+cp.feeAmt).toFixed(2)} ${P.status === 'Paid' ? 'received by ' + P.t.toLowerCase() : 'awaiting payment'}` : '';
     r.f.rxSel = []; cp = null; App.closeModal(); App.render();
