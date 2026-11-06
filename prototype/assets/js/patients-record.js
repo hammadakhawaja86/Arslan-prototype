@@ -8,7 +8,7 @@
   const table = (heads, rows, cols, empty) => `<div class="table-card"><div class="table-scroll"><table class="dt"><thead><tr>${heads.map(h => `<th>${h}</th>`).join('')}</tr></thead><tbody>${rows.length ? rows.join('') : `<tr class="empty-row"><td colspan="${cols}">${empty}</td></tr>`}</tbody></table></div>${rows.length ? App.pager(rows.length, rows.length) : ''}</div>`;
   const kv = rows => `<dl class="pt-kv">${rows.map(([k, v]) => `<div><dt>${k}</dt><dd>${v}</dd></div>`).join('')}</dl>`;
   /* modal pieces shared with patients-care.js */
-  const modal = PT.modal = (icon, t, sub, body, foot, tone = '') => `<div class="pt-dlg"><button class="icon-btn s20 pt-dlg-x" data-act="close-modal" aria-label="Close"><i class="ri-close-line"></i></button>${icon ? `<span class="pt-dlg-ic ${tone}"><i class="${icon}"></i></span>` : ''}<h2 id="dlg-title">${t}</h2>${sub ? `<p class="pt-dlg-sub">${sub}</p>` : ''}<form class="stack g16" id="pt-form" onsubmit="return false">${body}</form><div class="pt-dlg-foot">${foot}</div></div>`;
+  const modal = PT.modal = (icon, t, sub, body, foot, tone = '', cls = '') => `<div class="pt-dlg ${cls}"><button class="icon-btn s20 pt-dlg-x" data-act="close-modal" aria-label="Close"><i class="ri-close-line"></i></button>${icon ? `<span class="pt-dlg-ic ${tone}"><i class="${icon}"></i></span>` : ''}<h2 id="dlg-title">${t}</h2>${sub ? `<p class="pt-dlg-sub">${sub}</p>` : ''}<form class="stack g16" id="pt-form" onsubmit="return false">${body}</form><div class="pt-dlg-foot">${foot}</div></div>`;
   const F = PT.F = (label, name, val = '', o = {}) => `<div class="stack g4">${App.field(label, o.area ? `<textarea name="${name}" rows="${o.rows || 4}" maxlength="${o.max || 300}" data-in="pt-count" placeholder="${o.ph || ''}">${esc(val)}</textarea>` : `<input name="${name}" type="${o.type || 'text'}" value="${esc(val)}" placeholder="${o.ph || ''}" ${o.step ? `step="${o.step}"` : ''}>`, { req: o.req, cls: o.area ? 'multi' : '' })}${o.area ? `<span class="caption pt-count">Character limit: ${o.max || 300}${val ? ` · ${val.length} used` : ''}</span>` : ''}</div>`;
   const S = PT.S = (label, name, opts, val = '', o = {}) => App.field(label, `<select name="${name}">${o.ph ? `<option value="">${o.ph}</option>` : ''}${opts.map(x => `<option ${x === val ? 'selected' : ''}>${esc(x)}</option>`).join('')}</select>`, { req: o.req, cls: 'select' });
   const formData = PT.formData = () => Object.fromEntries(new FormData(App.$('#pt-form')));
@@ -210,20 +210,31 @@
   const gbp = v => '£' + Number(v || 0).toFixed(2);
   let iss = null;   /* the issue being put together: { id, route, price, method, pay } */
 
-  const issFacts = (m, me, org, extra = []) => `<div class="rx-facts">${[['Medicine', `${m.name} ${m.dose} ${m.unit}`], ['Frequency', m.freq], ['Prescriber', me], ['Organisation', org], ['On record as', `${m.source} · added by ${m.by}`], ...extra].map(([k, v]) => `<div><b>${k}:</b> ${esc(v)}</div>`).join('')}</div>`;
+  /* The facts read as two columns with a rule between them, each line led by its
+     own icon — a glance finds the medicine, the prescriber or the provenance
+     without reading the labels. */
+  const RXIC = { Medicine: 'ri-capsule-line', Frequency: 'ri-calendar-line', Prescriber: 'ri-user-line', Organisation: 'ri-building-line', 'On record as': 'ri-stack-line', 'Last issued': 'ri-history-line', Route: 'ri-guide-line', Price: 'ri-money-pound-circle-line' };
+  const factGrid = rows => { const half = Math.ceil(rows.length / 2);
+    const col = r => `<div class="rx-col">${r.map(([k, v]) => `<div class="rx-fact"><span class="rx-ic"><i class="${RXIC[k] || 'ri-information-line'}"></i></span><span><b>${k}:</b> ${esc(v)}</span></div>`).join('')}</div>`;
+    return `<div class="rx-grid">${col(rows.slice(0, half))}${col(rows.slice(half))}</div>`; };
+  const issFacts = (m, me, org, extra = []) => factGrid([['Medicine', `${m.name} ${m.dose} ${m.unit}`], ['Frequency', m.freq], ['Prescriber', me], ['Organisation', org], ['On record as', `${m.source} \u00b7 added by ${m.by}`], ...extra]);
+  const algBar = r => r.alg.length ? `<div class="pt-warn rx-alg"><i class="ri-alert-line"></i><span><b>Check against recorded allergies:</b>${r.alg.map(a => `${esc(a.name)} (${a.severity.toLowerCase()})`).join(' \u00b7 ')}</span></div>` : '';
+  /* the price carries its label beside the box rather than notched into the border,
+     so the one thing being asked for is not dressed as another read-only fact */
+  const priceRow = v => `<div class="rx-price"><label for="rx-price">Price (\u00a3) <b>*</b></label><div class="field"><input id="rx-price" name="price" type="number" step="0.01" placeholder="0.00" value="${esc(v ?? '')}"></div></div>`;
 
   const issModal = () => { const r = rec(cur()), m = r.meds.find(x => x.id === iss.id); if (!m) return;
     const [me, org] = here(), again = !!m.prescribed, R = ROUTES(), [, , blurb, takesPay] = R[iss.route];
     App.dialog(modal('ri-capsule-line', again ? 'Issue this medicine again' : 'Prescribe this medicine',
       `${esc(m.name)} is already on this patient’s list. Issuing it records a prescription from this practice.`,
-      `${r.alg.length ? `<div class="pt-warn"><i class="ri-alert-line"></i><span><b>Check against recorded allergies: </b>${r.alg.map(a => `${esc(a.name)} (${a.severity.toLowerCase()})`).join(' · ')}</span></div>` : ''}
+      `${algBar(r)}
       ${issFacts(m, me, org, again ? [['Last issued', m.issued]] : [])}
       <b class="sub2">Dispensing route</b>
       <div class="pt-seg ap-rxroute" role="tablist" aria-label="Dispensing route">${Object.entries(R).map(([k, [t, i]]) => `<button type="button" role="tab" aria-selected="${k === iss.route}" class="${k === iss.route ? 'on' : ''}" data-act="mh-iss-route" data-v="${k}"><i class="${i}"></i>${t}</button>`).join('')}</div>
       <div class="ap-sub"><span class="body2">${blurb}</span></div>
-      ${takesPay ? F('Price (£)', 'price', iss.price ?? '', { req: true, type: 'number', step: '0.01', ph: '0.00' }) : '<div class="pt-note"><i class="ri-information-line"></i><span>The patient pays Signature Rx when the prescription is dispensed. No price is set here and no payment is taken.</span></div>'}
+      ${takesPay ? priceRow(iss.price) : '<div class="pt-note"><i class="ri-information-line"></i><span>The patient pays Signature Rx when the prescription is dispensed. No price is set here and no payment is taken.</span></div>'}
       <div class="pt-note"><i class="ri-information-line"></i><span>The entry itself is not changed — it keeps its source and who added it.</span></div>`,
-      `<button class="btn outlined lg" data-act="close-modal">Cancel</button><button class="btn primary lg" data-act="mh-issue-go">${takesPay ? 'Continue to Payment' : 'Send Prescription'}</button>`, 'green'), { width: 540 }); };
+      `<button class="btn outlined lg" data-act="close-modal">Cancel</button><button class="btn primary lg" data-act="mh-issue-go">${takesPay ? 'Continue to Payment' : 'Send Prescription'}</button>`, 'green', 'rx-dlg'), { width: 720 }); };
 
   acts['mh-issue'] = el => { iss = { id: el.dataset.id, route: 'internal', price: '', method: 'link' }; issModal(); };
   /* a route that takes no payment has no price field, so the price is kept here
@@ -236,7 +247,7 @@
       `${PT.payTabs(M, iss.method, 'mh-pay-m')}
       ${P.body({ ...iss.pay, price: iss.price })}
       ${issFacts(m, me, org, [['Route', R[iss.route][0]], ['Price', gbp(iss.price)]])}`,
-      `<button class="btn outlined lg" data-act="close-modal">Cancel</button><button class="btn primary lg" data-act="mh-pay-go">${P.cta}</button>`), { width: 540 }); };
+      `<button class="btn outlined lg" data-act="close-modal">Cancel</button><button class="btn primary lg" data-act="mh-pay-go">${P.cta}</button>`, '', 'rx-dlg'), { width: 720 }); };
 
   acts['mh-issue-go'] = () => { const R = ROUTES(), takesPay = R[iss.route][3];
     if (takesPay) { const d = formData(); iss.price = d.price;
