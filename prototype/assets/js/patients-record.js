@@ -12,6 +12,17 @@
   const F = PT.F = (label, name, val = '', o = {}) => `<div class="stack g4">${App.field(label, o.area ? `<textarea name="${name}" rows="${o.rows || 4}" maxlength="${o.max || 300}" data-in="pt-count" placeholder="${o.ph || ''}">${esc(val)}</textarea>` : `<input name="${name}" type="${o.type || 'text'}" value="${esc(val)}" placeholder="${o.ph || ''}" ${o.step ? `step="${o.step}"` : ''}>`, { req: o.req, cls: o.area ? 'multi' : '' })}${o.area ? `<span class="caption pt-count">Character limit: ${o.max || 300}${val ? ` · ${val.length} used` : ''}</span>` : ''}</div>`;
   const S = PT.S = (label, name, opts, val = '', o = {}) => App.field(label, `<select name="${name}">${o.ph ? `<option value="">${o.ph}</option>` : ''}${opts.map(x => `<option ${x === val ? 'selected' : ''}>${esc(x)}</option>`).join('')}</select>`, { req: o.req, cls: 'select' });
   const formData = PT.formData = () => Object.fromEntries(new FormData(App.$('#pt-form')));
+  /* Medical History forms carry their label above the box rather than notched into
+     its border: a dense clinical form reads faster when the question is a line of
+     its own, and a required mark sits beside the question instead of on the frame. */
+  const ftId = n => 'ft-' + String(n).replace(/[^a-z0-9_-]/gi, '');
+  const lab = (t, n, o) => `<label for="${ftId(n)}"${o.req ? ' class="req"' : ''}>${t}${o.req ? ' <b>*</b>' : ''}</label>`;
+  const FT = PT.FT = (t, n, v = '', o = {}) => `<div class="ft">${lab(t, n, o)}${App.field('', o.area
+    ? `<textarea id="${ftId(n)}" name="${n}" rows="${o.rows || 3}" maxlength="${o.max || 300}" placeholder="${o.ph || ''}">${esc(v)}</textarea>`
+    : `<input id="${ftId(n)}" name="${n}" type="${o.type || 'text'}" value="${esc(v)}" placeholder="${o.ph || ''}" ${o.step ? `step="${o.step}"` : ''} ${o.attrs || ''}>`,
+    { cls: (o.area ? 'multi ' : '') + (o.cls || '') })}</div>`;
+  const ST = PT.ST = (t, n, opts, v = '', o = {}) => `<div class="ft">${lab(t, n, o)}${App.field('', `<select id="${ftId(n)}" name="${n}" ${o.attrs || ''}>${o.ph ? `<option value="">${o.ph}</option>` : ''}${opts.map(x => `<option ${x === v ? 'selected' : ''}>${esc(x)}</option>`).join('')}</select>`, { cls: 'select' })}</div>`;
+
   const needs = PT.needs = (d, keys) => { const miss = keys.filter(k => !String(d[k] || '').trim()); App.$$('#pt-form .field').forEach(f => { const n = f.querySelector('[name]')?.name; f.classList.toggle('err', miss.includes(n)); }); if (miss.length) App.$(`#pt-form [name="${miss[0]}"]`)?.focus(); return !miss.length; };
   ins['pt-count'] = el => { const c = el.closest('.stack')?.querySelector('.pt-count'); if (c) c.textContent = `Character limit: ${el.maxLength} · ${el.value.length} used`; };
   const confirmDel = PT.confirmDel = (t, sub, icon, name, meta, act, id, what) => App.dialog(modal('ri-error-warning-line', t, sub, `<div class="pt-del-item"><i class="${icon}"></i><div><b>${esc(name)}</b><span>${meta}</span></div></div><div class="pt-warn"><i class="ri-alert-line"></i><span>This action cannot be undone. The ${what} will be permanently removed from this patient’s record.</span></div>`, `<button class="btn outlined lg" data-act="close-modal">Cancel</button><button class="btn danger lg" data-act="${act}" data-id="${id}">Delete</button>`, 'red'), { width: 520 });
@@ -152,11 +163,11 @@
 
   const SRC = ['Weightfall', 'LeafEase', 'Clinician', 'Minor Ops'], BY = ['Clinician', 'Self', 'GP'];
   const MH = {
-    cond: ['ri-heart-add-line', 'Medical Condition', 'Add medical condition details below', x => F('Condition Name', 'name', x.name, { req: true, ph: 'Type condition name' }) + F('Description', 'desc', x.desc, { req: true, area: true, ph: 'Type description here' }) + S('Status', 'status', ['Active', 'Resolved'], x.status || 'Active', { req: true }) + S('Source', 'source', SRC, x.source || 'LeafEase', { req: true }) + S('Added By', 'by', BY, x.by || 'Clinician', { req: true }), ['name', 'desc'], 'Condition'],
-    alg: ['ri-virus-line', 'Allergy', 'Add allergy details below', x => F('Allergy Name', 'name', x.name, { req: true, ph: 'e.g. Penicillin' }) + S('Severity', 'severity', ['Low', 'Medium', 'High'], x.severity || 'Low', { req: true }) + F('Reaction', 'reaction', x.reaction, { req: true, area: true, ph: 'What happens when they’re exposed' }) + S('Added By', 'by', BY, x.by || 'Clinician', { req: true }) + S('Source', 'source', SRC, x.source || 'LeafEase', { req: true }), ['name', 'reaction'], 'Allergy']
+    cond: ['ri-heart-add-line', 'Medical Condition', 'Record a condition on this patient’s history.', x => FT('Condition name', 'name', x.name, { req: true, ph: 'Type condition name' }) + FT('Description', 'desc', x.desc, { req: true, area: true, ph: 'Type description here' }) + ST('Status', 'status', ['Active', 'Resolved'], x.status || 'Active', { req: true }) + `<div class="g2">${ST('Source', 'source', SRC, x.source || 'LeafEase', { req: true })}${ST('Added by', 'by', BY, x.by || 'Clinician', { req: true })}</div>`, ['name', 'desc'], 'Condition'],
+    alg: ['ri-virus-line', 'Allergy', 'Record an allergy on this patient’s history.', x => FT('Allergy name', 'name', x.name, { req: true, ph: 'e.g. Penicillin' }) + ST('Severity', 'severity', ['Low', 'Medium', 'High'], x.severity || 'Low', { req: true }) + FT('Reaction', 'reaction', x.reaction, { req: true, area: true, ph: 'What happens when they’re exposed' }) + `<div class="g2">${ST('Source', 'source', SRC, x.source || 'LeafEase', { req: true })}${ST('Added by', 'by', BY, x.by || 'Clinician', { req: true })}</div>`, ['name', 'reaction'], 'Allergy']
   };
   const mhOpen = (k, x) => { const [icon, t, sub, body] = MH[k];
-    App.dialog(modal(icon, `${x.id ? 'Edit' : 'Add'} ${t}`, x.id ? `Update ${esc(x.name)}` : sub, body(x), `<button class="btn outlined lg" data-act="close-modal">Cancel</button><button class="btn primary lg" data-act="mh-save" data-k="${k}" data-id="${x.id || ''}">${x.id ? 'Save changes' : 'Add ' + MH[k][5]}</button>`, 'green'), { width: 480 }); };
+    App.dialog(modal(icon, `${x.id ? 'Edit' : 'Add'} ${t}`, x.id ? `Update ${esc(x.name)}` : sub, body(x), `<button class="btn outlined lg" data-act="close-modal">Cancel</button><button class="btn primary lg" data-act="mh-save" data-k="${k}" data-id="${x.id || ''}">${x.id ? 'Save changes' : 'Add ' + MH[k][5]}</button>`, 'green', 'md-dlg'), { width: 540 }); };
   acts['mh-save'] = el => { const k = el.dataset.k, d = formData(); if (!needs(d, MH[k][4])) return; const list = rec(cur())[k];
     const x = list.find(i => i.id === el.dataset.id); if (x) Object.assign(x, d); else list.unshift({ id: uid(), ...d });
     App.closeModal(); App.render(); App.snack(`${d.name} ${x ? 'updated' : 'added to the medical history'}.`); };
@@ -186,31 +197,31 @@
     md.attest = !!d.attest; };
 
   const mdRow = (v, i, n) => `<div class="md-row" id="md-${v.k}">
-    ${n > 1 ? `<div class="md-row-h"><b>Medicine ${i + 1}</b><button type="button" class="icon-btn s20 danger" data-act="med-drop" data-k="${v.k}" aria-label="Remove medicine ${i + 1}" title="Remove"><i class="ri-close-line"></i></button></div>` : ''}
-    ${F('Medication Name', 'n' + v.k, v.name, { req: true, ph: 'e.g. Metformin' })}
-    <div class="pt-dose">${F('Dosage', 'd' + v.k, v.dose, { req: true, type: 'number' })}${S('Unit', 'u' + v.k, MEDU, v.unit, { req: true })}</div>
-    ${F('Frequency', 'f' + v.k, v.freq, { req: true, ph: 'e.g. Once daily' })}
-    <div class="g2">${F('Start Date', 's' + v.k, v.start, { req: true, type: 'date' })}${F('End Date', 'e' + v.k, v.end, { type: 'date' })}</div>
-    <div class="g2">${S('Status', 'st' + v.k, ['Active', 'Completed', 'Stopped'], v.status, { req: true })}<label class="cbx md-cd"><input type="checkbox" name="cd${v.k}" ${v.cd ? 'checked' : ''}>Controlled drug</label></div>
+    ${n > 1 ? `<div class="md-row-h"><b>Medication ${i + 1}</b><button type="button" class="icon-btn s20 danger" data-act="med-drop" data-k="${v.k}" aria-label="Remove medication ${i + 1}" title="Remove"><i class="ri-close-line"></i></button></div>` : ''}
+    ${FT('Medication name', 'n' + v.k, v.name, { req: true, ph: 'e.g. Metformin' })}
+    <div class="md-dose">${FT('Dosage', 'd' + v.k, v.dose, { req: true, type: 'number' })}${ST('Unit', 'u' + v.k, MEDU, v.unit, { req: true })}</div>
+    ${FT('Frequency', 'f' + v.k, v.freq, { req: true, ph: 'e.g. Once daily' })}
+    <div class="g2">${FT('Start date', 's' + v.k, v.start, { req: true, type: 'date' })}${FT('End date', 'e' + v.k, v.end, { type: 'date' })}</div>
+    <div class="g2 md-last">${ST('Status', 'st' + v.k, ['Active', 'Completed', 'Stopped'], v.status, { req: true })}<label class="cbx md-cd"><input type="checkbox" name="cd${v.k}" ${v.cd ? 'checked' : ''}>Controlled drug</label></div>
   </div>`;
 
   const mdModal = () => { const r = rec(cur()), n = md.rows.length, edit = !!md.editId, other = md.src === 'other';
     App.dialog(modal('ri-capsule-line', edit ? 'Edit medication' : n > 1 ? `Add ${n} medications` : 'Add medication',
-      edit ? `Update ${esc(md.rows[0].name || 'this medicine')}` : 'What the patient is taking. Adding to the list does not prescribe anything — use Create prescription for that.',
-      `${r.alg.length ? `<div class="pt-warn rx-alg"><i class="ri-alert-line"></i><span><b>Check against recorded allergies:</b>${r.alg.map(a => `${esc(a.name)} (${a.severity.toLowerCase()})`).join(' · ')}</span></div>` : ''}
+      edit ? `Update ${esc(md.rows[0].name || 'this medicine')} on this patient’s list.` : 'Record what the patient is taking. This adds it to their list; it does not create a prescription.',
+      `${r.alg.length ? `<div class="pt-warn rx-alg"><i class="ri-alert-line"></i><span><b>Check recorded allergies</b>${r.alg.map(a => `${esc(a.name)} · ${esc(a.severity)}`).join(', ')}</span></div>` : ''}
       <div class="stack g12" id="md-rows">${md.rows.map((v, i) => mdRow(v, i, n)).join('')}</div>
-      ${edit ? '' : `<button type="button" class="btn outlined block md-more" data-act="med-add-row"><i class="ri-add-line"></i>Add another medicine</button>`}
-      <b class="sub2">Where ${n > 1 ? 'they came' : 'it came'} from</b>
+      ${edit ? '' : `<button type="button" class="btn outlined block md-more" data-act="med-add-row"><i class="ri-add-line"></i>Add another medication</button>`}
+      <b class="md-h">Where ${n > 1 ? 'they came' : 'it came'} from</b>
       <div class="pt-seg md-seg" role="tablist" aria-label="Where it came from">${[['here', 'This practice'], ['other', 'Prescribed elsewhere']].map(([k, t]) => `<button type="button" role="tab" aria-selected="${k === md.src}" class="${k === md.src ? 'on' : ''}" data-act="med-src" data-v="${k}">${t}</button>`).join('')}</div>
       ${other
-        ? `<div class="pt-note"><i class="ri-information-line"></i><span>Recorded, not issued. ${n > 1 ? 'These medicines go' : 'This medicine goes'} on the list with ${n > 1 ? 'their' : 'its'} original prescriber, ready to be prescribed from here later.</span></div>
-          <div class="g2">${F('Prescriber', 'prescriber', md.prov.prescriber, { req: true, ph: 'e.g. Dr A Rahman' })}${F('Organisation', 'org', md.prov.org, { req: true, ph: 'e.g. Northside Medical Practice' })}</div>
-          ${S('Where this information came from', 'infoSrc', RX_INFO, md.prov.infoSrc, { req: true, ph: 'Choose a source' })}
-          ${S('Verification', 'verify', RX_VERIFY, md.prov.verify || RX_VERIFY[0], { req: true })}
+        ? `<div class="pt-note"><i class="ri-information-line"></i><span>Recorded, not issued. ${n > 1 ? 'These medications go' : 'This medication goes'} on the list with ${n > 1 ? 'their' : 'its'} original prescriber, ready to be prescribed from here later.</span></div>
+          <div class="g2">${FT('Prescriber', 'prescriber', md.prov.prescriber, { req: true, ph: 'e.g. Dr A Rahman' })}${FT('Organisation', 'org', md.prov.org, { req: true, ph: 'e.g. Northside Medical Practice' })}</div>
+          ${ST('Where this information came from', 'infoSrc', RX_INFO, md.prov.infoSrc, { req: true, ph: 'Choose a source' })}
+          ${ST('Verification', 'verify', RX_VERIFY, md.prov.verify || RX_VERIFY[0], { req: true })}
           <label class="dropzone pt-drop ${md.file ? 'has' : ''}" id="md-drop"><input type="file" accept=".jpg,.jpeg,.png,.pdf" hidden data-ch="med-file"><i class="ri-upload-cloud-2-line"></i><b>${md.file ? esc(md.file) : 'Attach evidence (optional)'}</b><span class="caption">Repeat slip, GP letter or discharge summary — JPEG, PNG or PDF</span><span class="btn outlined sm pt-dark">Browse File</span></label>
-          <label class="cbx cp-attest" id="md-attest"><input type="checkbox" name="attest" ${md.attest ? 'checked' : ''}><span>I confirm ${n > 1 ? 'these medicines were' : 'this medicine was'} prescribed by another provider and I have recorded ${n > 1 ? 'them' : 'it'} from the source above.</span></label>`
-        : `<div class="g2">${S('Source', 'source', SRC, md.source, { req: true })}${S('Added By', 'by', BY, md.by, { req: true })}</div>`}`,
-      `<button class="btn outlined lg" data-act="close-modal">Cancel</button><button class="btn primary lg" data-act="med-save">${edit ? 'Save changes' : n > 1 ? `Add ${n} medications` : 'Add medication'}</button>`, 'green'), { width: 560 }); };
+          <label class="cbx cp-attest" id="md-attest"><input type="checkbox" name="attest" ${md.attest ? 'checked' : ''}><span>I confirm ${n > 1 ? 'these medications were' : 'this medication was'} prescribed by another provider and I have recorded ${n > 1 ? 'them' : 'it'} from the source above.</span></label>`
+        : `<div class="g2">${ST('Source', 'source', SRC, md.source, { req: true })}${ST('Added by', 'by', BY, md.by, { req: true })}</div>`}`,
+      `<button class="btn outlined lg" data-act="close-modal">Cancel</button><button class="btn primary lg" data-act="med-save">${edit ? 'Save changes' : n > 1 ? `Add ${n} medications` : 'Add medication'}</button>`, 'green', 'md-dlg'), { width: 600 }); };
 
   const mdOpen = x => { md = { rows: [x ? { ...mdBlank(), ...x, dose: x.dose ?? '' } : mdBlank()], editId: x ? x.id : '',
       src: x && x.ext ? 'other' : 'here', source: (x && x.source) || 'LeafEase', by: (x && x.by) || 'Clinician',
@@ -233,7 +244,7 @@
       ${x.prescribed ? `<b class="sub2">Prescription</b>${kv([['Number', esc(x.script || '—')], ['Issued', esc(x.issued)], ['Prescriber', esc(x.prescriber)], ['Dispatch', esc((CPD[x.dispatch] || ['—'])[0])], ['Fee', x.fee === 'Paid prescription' ? `£${Number(x.feeAmt || 0).toFixed(2)} · ${esc(x.pay || '')} · ${esc(x.payStatus || '')}` : esc(x.fee || 'Free prescription')]])}` : ''}`;
     App.dialog(modal(icon, esc(x.name), `${t} on this patient’s record`,
       `${kv(rows(x).map(([a, b]) => [a, esc(b)]))}${extra}`,
-      `<button class="btn outlined lg" data-act="close-modal">Close</button>${editable(x) ? `<button class="btn primary lg" data-act="mh-edit" data-k="${k}" data-id="${x.id}"><i class="ri-edit-box-line"></i>Edit</button>` : ''}`, 'green'), { width: 520 }); };
+      `<button class="btn outlined lg" data-act="close-modal">Close</button>${editable(x) ? `<button class="btn primary lg" data-act="mh-edit" data-k="${k}" data-id="${x.id}"><i class="ri-edit-box-line"></i>Edit</button>` : ''}`, 'green', 'md-dlg'), { width: 540 }); };
   acts['mh-add'] = el => el.dataset.k === 'meds' ? mdOpen(null) : mhOpen(el.dataset.k, {});
   acts['mh-edit'] = el => { const x = rec(cur())[el.dataset.k].find(i => i.id === el.dataset.id);
     el.dataset.k === 'meds' ? mdOpen(x) : mhOpen(el.dataset.k, x); };
@@ -296,33 +307,51 @@
   const cpMedCard = (r, m) => { const v = cp.sel[m.id], on = !!v;
     return `<div class="cp-med ${on ? 'on' : ''}">
       <label class="cbx cp-pick"><input type="checkbox" data-ch="cp-tick" data-id="${m.id}" ${on ? 'checked' : ''}><span class="cp-med-h"><b>${esc(m.name)} ${esc(m.dose)} ${esc(m.unit)}</b><small>${esc(m.dose)} ${esc(m.unit)} · ${esc(m.freq)}</small></span></label>
-      ${on ? `${cpIssued(r, m) ? `<div class="pt-warn cp-dupe"><i class="ri-alert-line"></i><span>This medication is already on an issued prescription for this patient.</span></div>` : ''}
-      <div class="cp-row3">${F('Quantity', 'q_' + m.id, v.qty, { req: true, type: 'number' })}${S('Unit', 'u_' + m.id, CPUNIT, v.unit || CPUNIT[0], { req: true })}${F('Duration (days)', 'dur_' + m.id, v.dur, { type: 'number' })}</div>
-      ${F('Directions', 'dir_' + m.id, v.dirs, { req: true, area: true, rows: 3, max: 200, ph: 'e.g. Take one tablet twice daily with food' })}` : ''}
+      ${on ? `<div class="cp-med-b">${cpIssued(r, m) ? `<div class="pt-warn cp-dupe"><i class="ri-alert-line"></i><span>This medication is already on an issued prescription for this patient.</span></div>` : ''}
+      <div class="cp-row3">${FT('Quantity', 'q_' + m.id, v.qty, { req: true, type: 'number' })}${ST('Unit', 'u_' + m.id, CPUNIT, v.unit || CPUNIT[0], { req: true })}${FT('Duration (days)', 'dur_' + m.id, v.dur, { type: 'number' })}</div>
+      ${FT('Directions', 'dir_' + m.id, v.dirs, { req: true, area: true, rows: 3, max: 200, ph: 'e.g. Take one tablet twice daily with food' })}</div>` : ''}
     </div>`; };
 
-  const cpModal = () => { const p = cur(), r = rec(p), me = App.me().name;
-    const meds = medList(r);
+  const cpStep = (n, t, hint) => `<div class="cp-step"><span class="cp-num">${n}</span><span class="cp-step-t"><b>${t}</b><small>${hint}</small></span></div>`;
+  const cpModal = () => { const p = cur(), r = rec(p), me = App.me().name, org = App.biz ? App.biz().name : 'LeafEase';
+    const meds = medList(r), n = Object.keys(cp.sel).length, paid = cp.fee === 'Paid prescription';
+    const sum = [`${n || 'No'} medicine${n === 1 ? '' : 's'}`, CPD[cp.dispatch][0], paid ? `£${(+cp.feeAmt || 0).toFixed(2)} · ${PAYM()[cp.method].t}` : 'Free prescription'].join(' · ');
     App.dialog(`<div class="cp-dlg">
-      <div class="dlg-head"><h2 id="dlg-title">Create prescription</h2><button class="icon-btn s20" data-act="close-modal" aria-label="Close"><i class="ri-close-line"></i></button></div>
-      <form class="dlg-body stack g16" id="pt-form" onsubmit="return false">
-        <b class="cp-step">1. Medications</b>
-        <div class="stack g8" id="cp-meds">${meds.length ? meds.map(m => cpMedCard(r, m)).join('') : '<p class="caption">No medications on this list to prescribe.</p>'}</div>
-        <b class="cp-step">2. Dispatch</b>
-        <div class="stack g10" id="cp-dispatch">${Object.entries(CPD).map(([k, [t, , d]]) => `<label class="cp-radio ${k === cp.dispatch ? 'on' : ''}"><input type="radio" name="dispatch" value="${k}" data-ch="cp-dispatch" ${k === cp.dispatch ? 'checked' : ''}><span><b>${t}</b><small>${d}</small></span></label>`).join('')}</div>
-        <div class="stack g4">${App.field('Prescription fee', `<select name="fee" data-ch="cp-fee">${['Free prescription', 'Paid prescription'].map(o => `<option ${o === cp.fee ? 'selected' : ''}>${o}</option>`).join('')}</select>`, { req: true, cls: 'select' })}<span class="caption cp-hint">A paid prescription creates a charge the patient pays to the business.</span></div>
-        ${cp.fee === 'Paid prescription' ? `${App.field('Fee (£)', `<input name="feeAmt" type="number" step="0.01" placeholder="0.00" value="${esc(cp.feeAmt)}" data-in="cp-amt">`, { req: true })}
-        ${PT.payTabs(PAYM(), cp.method, 'cp-pay-m')}
-        ${PAYM()[cp.method].body({ ...cp.pay, price: +cp.feeAmt || 0 })}` : ''}
-        <b class="cp-step">3. Sign</b>
-        <div class="g2">${App.field('Prescriber', `<input value="${esc(me)}" readonly tabindex="-1">`, { cls: 'dis' })}${F('Registration number (e.g. GMC)', 'reg', cp.reg, { req: true })}</div>
-        <label class="cbx cp-attest" id="cp-attest"><input type="checkbox" name="attest" ${cp.attest ? 'checked' : ''}><span>I confirm that I am a registered healthcare professional, that I have assessed this patient, and that I am authorised to prescribe the medicines listed above. The details above are correct, and the signature below is mine.</span></label>
-        <div class="pt-seg cp-sigseg" role="tablist" aria-label="Signature">${[['draw', 'Draw'], ['upload', 'Upload image']].map(([k, t]) => `<button type="button" role="tab" aria-selected="${k === cp.sigMode}" class="${k === cp.sigMode ? 'on' : ''}" data-act="cp-sigmode" data-v="${k}">${t}</button>`).join('')}</div>
-        <div id="cp-sigwrap">${cp.sigMode === 'draw'
-          ? `<div class="cp-sig ${cp.strokes.length ? 'has' : ''}"><canvas id="cp-sig"></canvas><span class="caption cp-sig-hint" id="cp-sig-hint" ${cp.strokes.length ? 'hidden' : ''}>Sign here with the mouse or a finger</span><button type="button" class="btn text sm cp-sig-clear" data-act="cp-sigclear">Clear</button></div>`
-          : `<label class="dropzone pt-drop ${cp.sigFile ? 'has' : ''}" id="cp-drop"><input type="file" accept=".jpg,.jpeg,.png" hidden data-ch="cp-sigfile"><i class="ri-upload-cloud-2-line"></i><b>${cp.sigFile ? esc(cp.sigFile) : 'Upload a signature image'}</b><span class="caption">JPEG or PNG</span><span class="btn outlined sm pt-dark">Browse File</span></label>`}</div>
+      <div class="dlg-head cp-head">
+        <span class="pt-dlg-ic green cp-ic"><i class="ri-quill-pen-line"></i></span>
+        <span class="cp-head-t"><h2 id="dlg-title">Create prescription</h2><small>For ${esc(PT.name(p))} · signed and issued by ${esc(me)} at ${esc(org)}</small></span>
+        <button class="icon-btn s20 cp-x" data-act="close-modal" aria-label="Close"><i class="ri-close-line"></i></button>
+      </div>
+      <form class="dlg-body" id="pt-form" onsubmit="return false">
+        <section class="cp-sec">
+          ${cpStep(1, 'Medications', 'Tick what this prescription is for, then say how each one is taken.')}
+          <div class="stack g8" id="cp-meds">${meds.length ? meds.map(m => cpMedCard(r, m)).join('') : '<p class="caption">No medications on this list to prescribe.</p>'}</div>
+        </section>
+        <section class="cp-sec">
+          ${cpStep(2, 'Dispatch', 'How the medicine reaches the patient, and what it costs them.')}
+          <div class="cp-opts">${Object.entries(CPD).map(([k, [t, i, d]]) => `<label class="cp-opt ${k === cp.dispatch ? 'on' : ''}"><input type="radio" name="dispatch" value="${k}" data-ch="cp-dispatch" ${k === cp.dispatch ? 'checked' : ''}><span class="cp-opt-ic"><i class="${i}"></i></span><span class="cp-opt-t"><b>${t}</b><small>${d}</small></span></label>`).join('')}</div>
+          <div class="cp-panel">
+            <div class="g2 cp-fee">${ST('Prescription fee', 'fee', ['Free prescription', 'Paid prescription'], cp.fee, { req: true, attrs: 'data-ch="cp-fee"' })}${paid ? FT('Fee (£)', 'feeAmt', cp.feeAmt, { req: true, type: 'number', step: '0.01', ph: '0.00', attrs: 'data-in="cp-amt"' }) : '<span class="caption cp-hint">A paid prescription creates a charge the patient pays to the business.</span>'}</div>
+            ${paid ? `${PT.payTabs(PAYM(), cp.method, 'cp-pay-m')}${PAYM()[cp.method].body({ ...cp.pay, price: +cp.feeAmt || 0 })}` : ''}
+          </div>
+        </section>
+        <section class="cp-sec">
+          ${cpStep(3, 'Sign', 'The prescriber named here, and this signature, go on the prescription.')}
+          <div class="g2">${`<div class="ft"><label>Prescriber</label>${App.field('', `<input value="${esc(me)}" readonly tabindex="-1">`, { cls: 'dis' })}</div>`}${FT('Registration number (e.g. GMC)', 'reg', cp.reg, { req: true })}</div>
+          <label class="cbx cp-attest" id="cp-attest"><input type="checkbox" name="attest" ${cp.attest ? 'checked' : ''}><span>I confirm that I am a registered healthcare professional, that I have assessed this patient, and that I am authorised to prescribe the medicines listed above. The details above are correct, and the signature below is mine.</span></label>
+          <div class="cp-panel cp-sigpanel">
+            <div class="cp-sig-h"><b class="sub2">Signature</b><div class="pt-seg cp-sigseg" role="tablist" aria-label="Signature">${[['draw', 'Draw'], ['upload', 'Upload image']].map(([k, t]) => `<button type="button" role="tab" aria-selected="${k === cp.sigMode}" class="${k === cp.sigMode ? 'on' : ''}" data-act="cp-sigmode" data-v="${k}">${t}</button>`).join('')}</div></div>
+            <div id="cp-sigwrap">${cp.sigMode === 'draw'
+              ? `<div class="cp-sig ${cp.strokes.length ? 'has' : ''}"><canvas id="cp-sig"></canvas><span class="caption cp-sig-hint" id="cp-sig-hint" ${cp.strokes.length ? 'hidden' : ''}>Sign here with the mouse or a finger</span><button type="button" class="btn text sm cp-sig-clear" data-act="cp-sigclear"><i class="ri-eraser-line"></i>Clear</button></div>`
+              : `<label class="dropzone pt-drop ${cp.sigFile ? 'has' : ''}" id="cp-drop"><input type="file" accept=".jpg,.jpeg,.png" hidden data-ch="cp-sigfile"><i class="ri-upload-cloud-2-line"></i><b>${cp.sigFile ? esc(cp.sigFile) : 'Upload a signature image'}</b><span class="caption">JPEG or PNG</span><span class="btn outlined sm pt-dark">Browse File</span></label>`}</div>
+          </div>
+        </section>
       </form>
-      <div class="dlg-foot"><button class="btn text lg" data-act="close-modal">Cancel</button><button class="btn primary lg" data-act="cp-go">Sign and issue</button></div>
+      <div class="dlg-foot cp-foot">
+        <span class="cp-sum"><i class="ri-information-line"></i>${esc(sum)}</span>
+        <button class="btn outlined lg" data-act="close-modal">Cancel</button>
+        <button class="btn primary lg" data-act="cp-go"><i class="ri-quill-pen-line"></i>Sign and issue</button>
+      </div>
     </div>`, { width: 760, locked: true });
     cpWire(); };
 

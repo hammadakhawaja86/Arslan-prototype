@@ -1138,58 +1138,121 @@ tr.fw-off td { color: var(--text-2); }
 .mh-meds .dt th:nth-child(n+2):nth-child(-n+5), .mh-meds .dt td:nth-child(n+2):nth-child(-n+5) { padding-left: 11px; padding-right: 11px; }
 /* the dialog: title and footer stay put, the three steps scroll between them */
 .dialog > .cp-dlg { display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
-.cp-dlg .dlg-head { align-items: center; padding: 22px 24px; }
-.cp-dlg .dlg-head h2 { margin: 0; font-size: 20px; font-weight: 700; }
-.cp-dlg .dlg-body { padding: 20px 24px 24px; min-height: 0; }
-.cp-dlg .dlg-foot { background: #fff; }
-.cp-step { font-size: 16px; font-weight: 700; }
-.cp-step + * { margin-top: -4px; }
+.cp-head { align-items: center; gap: 16px; padding: 20px 24px; }
+.cp-head .cp-ic { width: 44px; height: 44px; font-size: 22px; margin: 0; flex: none; }
+.cp-head-t { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+.cp-head-t h2 { margin: 0; font-size: 20px; font-weight: 700; }
+.cp-head-t small { font-size: 13px; color: var(--text-2); }
+.cp-x { border: 1px solid var(--hairline); border-radius: 50%; flex: none; }
+.cp-dlg .dlg-body { padding: 4px 24px 24px; min-height: 0; gap: 0; display: block; }
+/* each step is a band of its own, with a rule between */
+.cp-sec { padding: 20px 0; display: flex; flex-direction: column; gap: 14px; }
+.cp-sec + .cp-sec { border-top: 1px solid var(--divider); }
+.cp-step { display: flex; align-items: flex-start; gap: 12px; }
+.cp-num { width: 26px; height: 26px; flex: none; border-radius: 50%; background: var(--primary); color: #fff; display: grid; place-items: center; font-size: 13px; font-weight: 700; }
+.cp-step-t { display: flex; flex-direction: column; gap: 1px; }
+.cp-step-t b { font-size: 16px; font-weight: 700; }
+.cp-step-t small { font-size: 13px; color: var(--text-2); }
 /* one medicine: a tick and a name, and the detail only once it is on the script */
-.cp-med { border: 1px solid var(--divider); border-radius: 14px; padding: 12px 14px; }
-.cp-med.on { background: var(--grey-50); border-color: transparent; display: flex; flex-direction: column; gap: 14px; }
+.cp-med { border: 1px solid var(--divider); border-radius: 14px; padding: 12px 14px; transition: border-color .12s, background .12s; }
+.cp-med:not(.on):hover { border-color: var(--p50); }
+.cp-med.on { border-color: var(--primary); background: var(--p04); display: flex; flex-direction: column; gap: 0; }
 .cp-med .cp-pick { align-items: flex-start; gap: 12px; }
 .cp-med .cp-pick input { margin: 0; flex: none; }
 .cp-med-h { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .cp-med-h b { font-size: 15px; font-weight: 600; }
 .cp-med-h small { font-size: 13px; color: var(--text-2); }
+.cp-med-b { display: flex; flex-direction: column; gap: 14px; margin-top: 14px; padding-top: 14px; border-top: 1px dashed var(--p30); }
+.cp-med-b .field { background: #fff; }
 .cp-dupe { padding: 10px 14px; font-size: 13px; align-items: center; }
 .cp-dupe i { font-size: 19px; }
 .cp-row3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
-/* how it reaches the patient */
-.cp-radio { display: flex; align-items: flex-start; gap: 12px; cursor: pointer; }
-.cp-radio input { appearance: none; width: 20px; height: 20px; margin: 1px 0 0; border: 2px solid rgba(0,0,0,.54); border-radius: 50%; flex: none; display: grid; place-items: center; cursor: pointer; }
-.cp-radio input:checked { border-color: var(--primary); }
-.cp-radio input:checked::after { content: ""; width: 10px; height: 10px; border-radius: 50%; background: var(--primary); }
-.cp-radio span { display: flex; flex-direction: column; gap: 1px; }
-.cp-radio b { font-size: 15px; font-weight: 600; }
-.cp-radio small { font-size: 13px; color: var(--text-2); }
-.cp-hint { margin: 0 12px; }
+/* how it reaches the patient: three cards, not three bare radios */
+.cp-opts { display: flex; flex-direction: column; gap: 10px; }
+.cp-opt { display: flex; align-items: center; gap: 14px; cursor: pointer; border: 1px solid var(--divider); border-radius: 14px; padding: 13px 16px; transition: border-color .12s, background .12s; }
+.cp-opt:hover { border-color: var(--p50); }
+.cp-opt.on { border-color: var(--primary); background: var(--p04); }
+.cp-opt input { appearance: none; width: 20px; height: 20px; margin: 0; border: 2px solid rgba(0,0,0,.4); border-radius: 50%; flex: none; display: grid; place-items: center; cursor: pointer; }
+.cp-opt input:checked { border-color: var(--primary); }
+.cp-opt input:checked::after { content: ""; width: 10px; height: 10px; border-radius: 50%; background: var(--primary); }
+.cp-opt-ic { width: 38px; height: 38px; flex: none; border-radius: 11px; background: var(--grey-100); color: var(--text-2); display: grid; place-items: center; font-size: 19px; }
+.cp-opt.on .cp-opt-ic { background: var(--p12); color: var(--primary); }
+.cp-opt-t { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.cp-opt-t b { font-size: 15px; font-weight: 600; }
+.cp-opt-t small { font-size: 13px; color: var(--text-2); }
+/* the money, and the signature, each in a panel of their own */
+.cp-panel { border: 1px solid var(--divider); border-radius: 14px; padding: 16px; display: flex; flex-direction: column; gap: 14px; background: var(--grey-50); }
+.cp-panel .field { background: #fff; }
+.cp-panel .pt-seg { display: flex; width: 100%; padding: 5px; background: #fff; }
+.cp-panel .pt-seg button { flex: 1 1 0; justify-content: center; padding: 10px; font-size: 13.5px; }
+.cp-panel .sub2 { margin: 0; }
+.cp-fee { align-items: center; }
+.cp-hint { margin: 0; }
+.cp-panel .rx-paybox { gap: 14px; }
+.cp-sig-h { display: flex; align-items: center; gap: 16px; }
+.cp-sig-h .sub2 { flex: none; }
+.cp-sig-h .pt-seg { width: auto; flex: 1; }
 /* the declaration and the signature */
 .cp-attest { align-items: flex-start; gap: 12px; font-size: 13.5px; line-height: 1.5; }
 .cp-attest input { margin: 1px 0 0; flex: none; }
 .cp-attest.err span { color: var(--error); }
 .cp-attest.err input { outline: 2px solid var(--error); outline-offset: 2px; border-radius: 4px; }
-.cp-sigseg { align-self: flex-start; }
-.cp-sig { position: relative; height: 190px; border: 1px solid var(--field); border-radius: 12px; background: #fff; overflow: hidden; }
+.cp-sig { position: relative; height: 180px; border: 1px solid var(--field); border-radius: 12px; background: #fff; overflow: hidden; }
 .cp-sig.err { border-color: var(--error); }
 .cp-sig canvas { display: block; width: 100%; height: 100%; touch-action: none; cursor: crosshair; }
 .cp-sig-hint { position: absolute; inset: 0; display: grid; place-items: center; pointer-events: none; }
-.cp-sig-clear { position: absolute; top: 8px; right: 8px; }
-@media (max-width: 680px) { .cp-row3 { grid-template-columns: 1fr; } }
+.cp-sig-clear { position: absolute; top: 8px; right: 8px; gap: 4px; }
+/* what is about to be signed, beside the buttons that sign it */
+.cp-foot { gap: 14px; }
+.cp-sum { display: inline-flex; align-items: center; gap: 7px; margin-right: auto; font-size: 13px; color: var(--text-2); min-width: 0; }
+.cp-sum i { font-size: 16px; flex: none; }
+.cp-foot .btn { border-radius: 999px; min-width: 132px; justify-content: center; }
+@media (max-width: 680px) {
+  .cp-row3 { grid-template-columns: 1fr; }
+  .cp-sum { display: none; }
+  .cp-sig-h { flex-direction: column; align-items: stretch; gap: 10px; }
+  .cp-opt-ic { display: none; }
+}
 
-/* the allergy check, wherever it appears: the alert, a rule, then the list */
-.rx-alg { align-items: center; gap: 14px; padding: 13px 16px; font-size: 13.5px; }
-.rx-alg > i { font-size: 23px; }
-.rx-alg > span { border-left: 1px solid #F0C894; padding-left: 14px; }
-.rx-alg b { font-size: 14.5px; margin-bottom: 3px; }
-/* one medicine inside Add medication; several of these stack up */
-.md-row { border: 1px solid var(--divider); border-radius: 14px; padding: 14px; display: flex; flex-direction: column; gap: 14px; }
+/* ---------- Medical History forms ---------- */
+/* the label sits above its box, not notched into the border */
+.ft { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.ft > label { font-size: 14px; font-weight: 600; color: var(--text); line-height: 1.3; }
+.ft > label b { color: var(--error); font-weight: 600; }
+.ft > .field { min-height: 52px; }
+.ft > .field.multi { min-height: 0; align-items: stretch; }
+.ft > .field textarea { padding: 12px 0; }
+.ft:has(.field.err) > label { color: var(--error); }
+/* the allergy check: the alert, then the heading and the list under it */
+.rx-alg { align-items: center; gap: 16px; padding: 14px 18px; font-size: 14px; }
+.rx-alg > i { font-size: 26px; flex: none; }
+.rx-alg b { display: block; font-size: 16px; margin-bottom: 2px; }
+/* the dialog shell these forms share */
+.pt-dlg.md-dlg { display: grid; grid-template-columns: auto 1fr; align-items: start; padding: 26px 28px; gap: 0; column-gap: 22px; }
+.md-dlg > .pt-dlg-ic { position: relative; grid-column: 1; grid-row: 1 / span 2; width: 52px; height: 52px; font-size: 25px; margin: 0 14px 0 0; }
+.md-dlg > .pt-dlg-ic::after { content: ""; position: absolute; right: -14px; top: -2px; bottom: -2px; width: 1px; background: var(--divider); }
+.md-dlg > h2 { grid-column: 2; grid-row: 1; align-self: end; font-size: 22px; }
+.md-dlg > .pt-dlg-sub { grid-column: 2; grid-row: 2; margin: 3px 0 0; font-size: 14px; }
+.md-dlg > form, .md-dlg > .pt-dlg-foot { grid-column: 1 / -1; }
+.md-dlg > form { margin-top: 22px; }
+.md-dlg > .pt-dlg-foot { border-top: 1px solid var(--divider); padding-top: 20px; margin-top: 22px; gap: 16px; }
+.md-dlg > .pt-dlg-foot .btn { border-radius: 999px; }
+.md-dlg .pt-dlg-x { border: 1px solid var(--hairline); border-radius: 50%; }
+.md-dlg .pt-kv { gap: 12px; }
+/* one medication inside Add medication; several of these stack up */
+.md-row { border: 1px solid #E3E6E6; border-radius: 16px; padding: 18px; display: flex; flex-direction: column; gap: 16px; }
 .md-row-h { display: flex; align-items: center; justify-content: space-between; margin-bottom: -4px; }
 .md-row-h b { font-size: 14px; color: var(--text-2); font-weight: 600; }
-.md-cd { border: 1px solid var(--field); border-radius: 12px; min-height: 56px; padding-right: 14px; }
-.md-more { justify-content: center; }
-.md-seg { display: flex; width: 100%; padding: 5px; }
-.md-seg button { flex: 1 1 0; justify-content: center; padding: 10px; font-size: 13.5px; }
+.md-dose { display: grid; grid-template-columns: 1.7fr 1fr; gap: 14px; }
+.md-last { align-items: end; }
+.md-cd { border: 1px solid var(--field); border-radius: 12px; min-height: 52px; padding-right: 14px; font-weight: 500; }
+.md-more { justify-content: center; color: var(--primary); border-color: var(--p50); }
+.md-more:hover { background: var(--p04); }
+.md-h { font-size: 16px; font-weight: 700; }
+.md-seg { display: flex; width: 100%; padding: 5px; background: var(--grey-50); }
+.md-seg button { flex: 1 1 0; justify-content: center; padding: 11px; font-size: 14px; font-weight: 500; }
+.md-seg button.on { font-weight: 700; }
+@media (max-width: 620px) { .md-dose { grid-template-columns: 1fr; } .pt-dlg.md-dlg { padding: 20px; } }
 /* Prescribing is the row's own action, so it carries the brand colour; edit stays
    neutral and delete stays red. */
 .row-actions .mh-rx-btn { color: var(--primary); }
