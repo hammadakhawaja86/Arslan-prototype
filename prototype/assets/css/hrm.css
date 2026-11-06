@@ -1109,6 +1109,10 @@ tr.fw-off td { color: var(--text-2); }
    so the name is what the eye catches first. A touch larger than the house
    caption, because a dose is read, not skimmed. */
 .mh-meds .cell2 .mh-dose { font-size: 13px; letter-spacing: 0; margin-top: 1px; }
+/* Prescribing is the row's own action, so it carries the brand colour; edit stays
+   neutral and delete stays red. */
+.row-actions .mh-rx-btn { color: var(--primary); }
+.row-actions .mh-rx-btn:hover { background: var(--p08); }
 /* Medical History tables: one rhythm across all three.
    The name column and the last three (Source, Added By, Action) are the same
    width everywhere, so those edges line up down the page; whatever is left
