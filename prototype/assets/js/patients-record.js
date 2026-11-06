@@ -114,6 +114,12 @@
 
   /* ---------- Medical History ---------- */
   const editable = x => x.by !== 'GP';
+  /* what a row shows once this practice has issued it: where it goes, and where
+     the money stands — amber while a payment link is outstanding, green once in */
+  const issTags = m => { const R = (PT.RXROUTE || {})[m.route]; if (!R) return '';
+    return `<span class="row g4 mh-rxtags">${chip(R[0], 't-blue', R[1])}${m.pay
+      ? chip(`${m.pay} · £${Number(m.price || 0).toFixed(2)}`, m.payStatus === 'Paid' ? 't-green' : 't-orange', m.payStatus === 'Paid' ? 'ri-checkbox-circle-line' : 'ri-time-line')
+      : chip('Paid at pharmacy', 't-grey', 'ri-store-2-line')}</span>`; };
   /* Prescribing issues the medicine from this practice. It does not edit the entry,
      so it is offered on GP rows too, where editing is locked. */
   const issueBtn = x => `<button class="icon-btn s20 mh-rx-btn" data-act="mh-issue" data-id="${x.id}" aria-label="Prescribe ${esc(x.name)}" title="${x.prescribed ? 'Issue again' : 'Prescribe'}"><i class="ri-capsule-line"></i></button>`;
@@ -124,7 +130,7 @@
   PT.tabs['medical-history'] = p => { const r = rec(p); const meds = r.meds.filter(m => r.f.medView === 'Active' ? m.status === 'Active' : m.status !== 'Active');
     return title('Medical History') + `<div class="stack g16">
       ${box('c', 'ri-heart-pulse-line', `Medical Conditions (${r.cond.filter(c => c.status === 'Active').length} Active)`, `<button class="btn primary" data-act="mh-add" data-k="cond"><i class="ri-add-circle-line"></i>Add Medical Condition</button>`, `<div class="mh-cond">${table(['Condition', 'Description', 'Status', 'Source', 'Added By', 'Action'], r.cond.map(c => `<tr><td><b class="fw5">${esc(c.name)}</b></td><td>${esc(c.desc)}</td><td>${stChip(c.status)}</td><td>${esc(c.source)}</td><td>${esc(c.by)}</td><td>${rowAct('cond', c)}</td></tr>`), 6, 'No medical conditions recorded.')}</div>`, r)}
-      ${box('m', 'ri-capsule-line', 'Medications', `${seg('mh-medview', [['Active', 'Active'], ['Historical', 'Historical']], r.f.medView)}<button class="btn outlined" data-act="mh-rx"><i class="ri-capsule-line"></i>Add Prescription</button><button class="btn primary" data-act="mh-add" data-k="meds"><i class="ri-add-circle-line"></i>Add Medication</button>`, `<div class="mh-meds">${table(['Medication', 'Frequency', 'Status', 'Start Date', 'End Date', 'Source', 'Added By', 'Action'], meds.map(m => `<tr><td><span class="cell2"><b class="fw5">${esc(m.name)}</b><small class="mh-dose">${esc(m.dose)} ${esc(m.unit)}</small>${!m.ext && m.prescribed ? `<small>Issued by ${esc(m.prescriber)} · ${esc(m.org)} · ${esc(m.issued)}</small>` : ''}${m.ext ? `<small>Prescribed by ${esc(m.prescriber)} · ${esc(m.org)}</small><span class="row g4 mh-rxtags">${/^Patient/.test(m.verify || '') ? chip('Unverified', 't-orange', 'ri-error-warning-line') : chip('Verified', 't-green', 'ri-verified-badge-line')}${m.cd ? chip('Controlled drug', 't-red', 'ri-shield-keyhole-line') : ''}</span>` : ''}</span></td><td>${esc(m.freq)}</td><td>${stChip(m.status)}</td><td>${PT.dmy(m.start)}</td><td>${m.end ? PT.dmy(m.end) : '—'}</td><td>${esc(m.source)}</td><td>${esc(m.by)}</td><td>${rowAct('meds', m)}</td></tr>`), 8, r.f.medView === 'Active' ? 'No active medications.' : 'No past medications.')}</div>`, r)}
+      ${box('m', 'ri-capsule-line', 'Medications', `${seg('mh-medview', [['Active', 'Active'], ['Historical', 'Historical']], r.f.medView)}<button class="btn outlined" data-act="mh-rx"><i class="ri-capsule-line"></i>Add Prescription</button><button class="btn primary" data-act="mh-add" data-k="meds"><i class="ri-add-circle-line"></i>Add Medication</button>`, `<div class="mh-meds">${table(['Medication', 'Frequency', 'Status', 'Start Date', 'End Date', 'Source', 'Added By', 'Action'], meds.map(m => `<tr><td><span class="cell2"><b class="fw5">${esc(m.name)}</b><small class="mh-dose">${esc(m.dose)} ${esc(m.unit)}</small>${!m.ext && m.prescribed ? `<small>Issued by ${esc(m.prescriber)} · ${esc(m.org)} · ${esc(m.issued)}</small>${issTags(m)}` : ''}${m.ext ? `<small>Prescribed by ${esc(m.prescriber)} · ${esc(m.org)}</small><span class="row g4 mh-rxtags">${/^Patient/.test(m.verify || '') ? chip('Unverified', 't-orange', 'ri-error-warning-line') : chip('Verified', 't-green', 'ri-verified-badge-line')}${m.cd ? chip('Controlled drug', 't-red', 'ri-shield-keyhole-line') : ''}</span>` : ''}</span></td><td>${esc(m.freq)}</td><td>${stChip(m.status)}</td><td>${PT.dmy(m.start)}</td><td>${m.end ? PT.dmy(m.end) : '—'}</td><td>${esc(m.source)}</td><td>${esc(m.by)}</td><td>${rowAct('meds', m)}</td></tr>`), 8, r.f.medView === 'Active' ? 'No active medications.' : 'No past medications.')}</div>`, r)}
       ${box('a', 'ri-virus-line', 'Allergies', `<button class="btn primary" data-act="mh-add" data-k="alg"><i class="ri-add-circle-line"></i>Add New Allergy</button>`, `<div class="mh-alg">${table(['Allergy', 'Severity', 'Reaction', 'Source', 'Added By', 'Action'], r.alg.map(a => `<tr><td><b class="fw5">${esc(a.name)}</b></td><td>${sevChip(a.severity)}</td><td>${esc(a.reaction)}</td><td>${esc(a.source)}</td><td>${esc(a.by)}</td><td>${rowAct('alg', a)}</td></tr>`), 6, 'No known allergies recorded.')}</div>`, r)}</div>`; };
   acts['mh-tog'] = el => { const f = rec(cur()).f.mhOpen; f[el.dataset.k] = !f[el.dataset.k]; App.render(); };
   acts['mh-medview'] = el => { rec(cur()).f.medView = el.dataset.v; App.render(); };
@@ -194,23 +200,68 @@
   acts['mh-rx'] = () => rxOpen({});
 
   /* ---------- Issue a medicine already on the list ----------
-     A repeat: the entry keeps its own source and who added it, and gains a
-     record of this practice having prescribed it. */
+     A repeat. The entry keeps its own source and who added it and gains a record
+     of this practice having prescribed it, so a GP row can be issued without the
+     import being touched. The dispensing routes and the payment step are the ones
+     the appointment flow uses, read from PT at click time because appts.js loads
+     after this file. */
   const here = () => [App.me().name, App.biz ? App.biz().name : 'LeafEase'];
-  acts['mh-issue'] = el => { const r = rec(cur()), m = r.meds.find(x => x.id === el.dataset.id); if (!m) return;
-    const [me, org] = here(), again = !!m.prescribed;
+  const ROUTES = () => PT.RXROUTE || { internal: ['Internal (Within Practice)', 'ri-home-gear-line', '', true] };
+  const gbp = v => '£' + Number(v || 0).toFixed(2);
+  let iss = null;   /* the issue being put together: { id, route, price, method, pay } */
+
+  const issFacts = (m, me, org, extra = []) => `<div class="rx-facts">${[['Medicine', `${m.name} ${m.dose} ${m.unit}`], ['Frequency', m.freq], ['Prescriber', me], ['Organisation', org], ['On record as', `${m.source} · added by ${m.by}`], ...extra].map(([k, v]) => `<div><b>${k}:</b> ${esc(v)}</div>`).join('')}</div>`;
+
+  const issModal = () => { const r = rec(cur()), m = r.meds.find(x => x.id === iss.id); if (!m) return;
+    const [me, org] = here(), again = !!m.prescribed, R = ROUTES(), [, , blurb, takesPay] = R[iss.route];
     App.dialog(modal('ri-capsule-line', again ? 'Issue this medicine again' : 'Prescribe this medicine',
       `${esc(m.name)} is already on this patient’s list. Issuing it records a prescription from this practice.`,
       `${r.alg.length ? `<div class="pt-warn"><i class="ri-alert-line"></i><span><b>Check against recorded allergies: </b>${r.alg.map(a => `${esc(a.name)} (${a.severity.toLowerCase()})`).join(' · ')}</span></div>` : ''}
-      <div class="rx-facts">${[['Medicine', `${m.name} ${m.dose} ${m.unit}`], ['Frequency', m.freq], ['Status', m.status], ['Prescriber', me], ['Organisation', org], ['On record as', `${m.source} · added by ${m.by}`], ...(again ? [['Last issued', m.issued]] : [])].map(([k, v]) => `<div><b>${k}:</b> ${esc(v)}</div>`).join('')}</div>
-      <div class="pt-note"><i class="ri-information-line"></i><span>The entry itself is not changed — it keeps its source and who added it. Nothing is sent to a pharmacy from this prototype.</span></div>`,
-      `<button class="btn outlined lg" data-act="close-modal">Cancel</button><button class="btn primary lg" data-act="mh-issue-go" data-id="${m.id}">${again ? 'Issue again' : 'Prescribe'}</button>`, 'green'), { width: 520 }); };
-  acts['mh-issue-go'] = el => { const m = rec(cur()).meds.find(x => x.id === el.dataset.id); if (!m) return;
-    const [me, org] = here();
-    m.prescribed = true; m.prescriber = me; m.org = org;
-    m.issued = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
-    App.closeModal(); App.render();
-    App.snack(`${m.name} prescribed\nIssued by ${me} at ${org} on ${m.issued}.`); };
+      ${issFacts(m, me, org, again ? [['Last issued', m.issued]] : [])}
+      <b class="sub2">Dispensing route</b>
+      <div class="pt-seg ap-rxroute" role="tablist" aria-label="Dispensing route">${Object.entries(R).map(([k, [t, i]]) => `<button type="button" role="tab" aria-selected="${k === iss.route}" class="${k === iss.route ? 'on' : ''}" data-act="mh-iss-route" data-v="${k}"><i class="${i}"></i>${t}</button>`).join('')}</div>
+      <div class="ap-sub"><span class="body2">${blurb}</span></div>
+      ${takesPay ? F('Price (£)', 'price', iss.price ?? '', { req: true, type: 'number', step: '0.01', ph: '0.00' }) : '<div class="pt-note"><i class="ri-information-line"></i><span>The patient pays Signature Rx when the prescription is dispensed. No price is set here and no payment is taken.</span></div>'}
+      <div class="pt-note"><i class="ri-information-line"></i><span>The entry itself is not changed — it keeps its source and who added it.</span></div>`,
+      `<button class="btn outlined lg" data-act="close-modal">Cancel</button><button class="btn primary lg" data-act="mh-issue-go">${takesPay ? 'Continue to Payment' : 'Send Prescription'}</button>`, 'green'), { width: 540 }); };
+
+  acts['mh-issue'] = el => { iss = { id: el.dataset.id, route: 'internal', price: '', method: 'link' }; issModal(); };
+  /* a route that takes no payment has no price field, so the price is kept here
+     rather than read back from a form that may not be showing it */
+  acts['mh-iss-route'] = el => { const d = formData(); if ('price' in d) iss.price = d.price; iss.route = el.dataset.v; issModal(); };
+
+  const issPayModal = () => { const r = rec(cur()), m = r.meds.find(x => x.id === iss.id); if (!m) return;
+    const [me, org] = here(), M = PT.payMethods('rx'), P = M[iss.method], R = ROUTES();
+    App.dialog(modal('ri-error-warning-line', 'Issue Prescription', `You are about to issue ${esc(m.name)} for this patient.`,
+      `${PT.payTabs(M, iss.method, 'mh-pay-m')}
+      ${P.body({ ...iss.pay, price: iss.price })}
+      ${issFacts(m, me, org, [['Route', R[iss.route][0]], ['Price', gbp(iss.price)]])}`,
+      `<button class="btn outlined lg" data-act="close-modal">Cancel</button><button class="btn primary lg" data-act="mh-pay-go">${P.cta}</button>`), { width: 540 }); };
+
+  acts['mh-issue-go'] = () => { const R = ROUTES(), takesPay = R[iss.route][3];
+    if (takesPay) { const d = formData(); iss.price = d.price;
+      if (!needs(d, ['price'])) return;
+      if (!(+d.price > 0)) { App.$('#pt-form [name=price]').closest('.field').classList.add('err'); return App.snack('Enter the price the patient will pay.', 'error'); }
+      iss.pay = {}; return issPayModal(); }
+    issSave(null); };
+  /* keep what has been entered when flipping between methods */
+  acts['mh-pay-m'] = el => { iss.pay = { ...iss.pay, ...formData() }; iss.method = el.dataset.v; issPayModal(); };
+  acts['mh-pay-go'] = () => { const M = PT.payMethods('rx'), P = M[iss.method], d = formData();
+    if (P.need.length && !needs(d, P.need)) return;
+    issSave({ ...d, pay: P.t, payStatus: P.status }); };
+
+  const issSave = extra => { const m = rec(cur()).meds.find(x => x.id === iss.id); if (!m) return;
+    const [me, org] = here(), R = ROUTES();
+    Object.assign(m, { prescribed: true, prescriber: me, org, route: iss.route,
+      price: R[iss.route][3] ? +iss.price : '', pay: '', payStatus: '', receipt: '', txnRef: '', transferDate: '', ...(extra || {}),
+      issued: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) });
+    const routeName = R[iss.route][0], name = m.name, amt = gbp(m.price);
+    App.closeModal(); App.render(); iss = null;
+    App.snack(!m.pay ? `${name} sent to Signature Rx\nThe patient pays the pharmacy when it is dispensed.`
+      : m.pay === 'Cash' ? `${name} recorded as paid\nCash received ${amt}${m.receipt ? ` · receipt ${m.receipt}` : ''} · released to ${routeName}.`
+      : m.pay === 'Bank Transfer' ? `${name} recorded as paid\nBank transfer ${amt} · ref ${m.txnRef} · released to ${routeName}.`
+      : `${name} awaiting payment\nA secure payment link has been emailed to the patient · ${amt}. Held for 24 hours.`); };
+
   acts['rx-edit'] = el => rxOpen(rec(cur()).meds.find(m => m.id === el.dataset.id));
   chs['rx-file'] = el => { const f = el.files[0]; if (!f) return;
     if (f.size > 10 * 1024 * 1024) { App.snack('That file is over 10 MB. Choose a smaller file.', 'error'); return; }
