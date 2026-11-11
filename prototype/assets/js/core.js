@@ -222,9 +222,15 @@
     App.$('#tb-icon').className = meta.icon; App.$('#tb-title').textContent = meta.title;
     App.syncNav(meta.key);
     App.$('#app').classList.remove('menu-open'); App.$('#app').classList.toggle('public', !!meta.public);
-    const page = App.$('#page'); page.innerHTML = denied ? App.deniedPage(meta) : (r.fn(...args) || ''); page.scrollTop = 0;
+    const page = App.$('#page'); page.innerHTML = denied ? App.deniedPage(meta) : (r.fn(...args) || '');
+    /* The window scrolls, not #page, so resetting the pane's scrollTop did nothing:
+       moving to another screen left you halfway down the one before it, with the
+       page header and its tabs off the top. Reset on a change of path only —
+       re-renders of the same screen restore their own position afterwards. */
+    page.scrollTop = 0;
+    if (path !== App._path) { App._path = path; scrollTo(0, 0); }
     if (App._after) { const f = App._after; App._after = null; f(); }
-    if (App._focusPage) { page.focus(); App._focusPage = false; }
+    if (App._focusPage) { page.focus({ preventScroll: true }); App._focusPage = false; } /* focus() on its own scrolled the pane back under the toolbar */
   };
   App.after = fn => { const prev = App._after; App._after = prev ? () => { prev(); fn(); } : fn; };
 
