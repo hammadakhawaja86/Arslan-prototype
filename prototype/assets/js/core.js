@@ -66,7 +66,7 @@
     App.closeModal(); App._lastFocus = document.activeElement;
     const s = document.createElement('div'); s.className = 'scrim';
     s.innerHTML = `<div class="dialog ${opts.wide ? 'wide' : ''}" role="dialog" aria-modal="true" aria-labelledby="dlg-title" ${opts.width ? `style="width:min(${opts.width}px,100%)"` : ''}>${html}</div>`;
-    s.addEventListener('mousedown', e => { if (e.target === s && !opts.locked) App.closeModal(); });
+    s.addEventListener('mousedown', e => { if (e.target === s && !opts.locked) App.acts['close-modal'](); });
     document.body.appendChild(s);
     (s.querySelector('[autofocus]') || s.querySelector('input, select, textarea, button'))?.focus();
     return s.firstElementChild;
@@ -111,6 +111,21 @@
   const R = () => App.ROLES[App.role] || App.ROLES.bm;
   Object.defineProperty(App, 'NAV', { get: () => R().nav });
   App.me = () => R();
+  /* The units a quantity can be written in. Prescriptions and stock items both
+     draw from this one list, so what is written on a prescription is always a
+     unit the stock side knows how to count. */
+  App.UNITS = ['tablets', 'capsules', 'ml', 'mg', 'sachets', 'puffs', 'patches', 'pens', 'vials', 'ampoules', 'syringes', 'sprays', 'drops', 'boxes', 'packs'];
+  /* What the signed-in person may do. It reads the role editor's own matrix
+     (Settings › Roles), so changing a role there changes this; and it adds the
+     one thing a role cannot say — whether the person provides medical care,
+     which writing or cancelling a prescription needs on top of the permission.
+     Nobody who is not staff has a role in the matrix, so a patient can do none. */
+  const CARE = { bm: true, clinician: true };
+  const RNAME = { bm: 'Business Manager', clinician: 'Clinician', admin: 'Super Admin Aqlios', vadmin: 'Private Vertical Admin' };
+  App.can = (mod, act) => {
+    const role = ((App.RP && App.RP.ROLES) || []).find(x => x.name === RNAME[App.role]);
+    if (!role || role.p[mod + '::' + act] !== true) return false;
+    return mod !== 'Prescriptions' || act === 'View List' || !!CARE[App.role]; };
   /* Vertical Admins and Super Admins sign in at the Aqlios level and pick a vertical, then a business (verticals.js). */
   App.isVertical = () => !!R().vertical && !!App.role;
   const keyOf = it => it[3] || 'soon:' + App.slug(it[0]);
@@ -244,7 +259,7 @@
   document.addEventListener('input', e => { const t = e.target.closest('[data-in]'); if (t && App.ins[t.dataset.in]) App.ins[t.dataset.in](t, e); });
   document.addEventListener('change', e => { const t = e.target.closest('[data-ch]'); if (t && App.chs[t.dataset.ch]) App.chs[t.dataset.ch](t, e); });
   document.addEventListener('keydown', e => {
-    if (e.key === 'Escape') { if (App.$('.menu')) App.closeMenu(); else if (App.$('.scrim, .drawer')) { const locked = App.$('.scrim')?.dataset.locked; if (!locked) App.closeModal(); } }
+    if (e.key === 'Escape') { if (App.$('.menu')) App.closeMenu(); else if (App.$('.scrim, .drawer')) { const locked = App.$('.scrim')?.dataset.locked; if (!locked) App.acts['close-modal'](); } }
     if ((e.key === 'Enter' || e.key === ' ') && e.target.matches('[data-go][tabindex]')) { e.preventDefault(); App.go(e.target.dataset.go); }
   });
   window.addEventListener('hashchange', () => { App._focusPage = true; App.render(); });

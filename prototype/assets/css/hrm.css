@@ -678,6 +678,34 @@
 .pt-sticky { position: sticky; top: 90px; }
 /* medical history */
 .pt-box .pt-box-h .pt-seg { padding: 3px; }
+/* ---------- Medical History: one section at a time ----------
+   Three tables stacked down the page meant scrolling past two to reach the one
+   you came for. The bar names all three and shows one; it is deliberately a
+   card rather than a second pill bar, so it does not read as a copy of the
+   record's own tab row directly above it. */
+.mh-bar { align-self: flex-start; max-width: 100%; }
+/* the medicines are read two ways: what is being taken now, and which of them
+   come back. The filter sits over the table it filters. */
+.mh-medf { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.mh-away { display: inline-flex; align-items: center; gap: 5px; }
+.mh-away i { font-size: 15px; }
+/* allergies are a tab away, and this is the tab prescriptions are written from */
+.mh-algbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 9px 14px; border: 1px solid rgba(var(--c), .28); border-radius: 14px; background: rgba(var(--c), .045); font-size: 13px; }
+.mh-algbar > i { font-size: 18px; color: var(--error); }
+.mh-algbar > b { font-weight: 600; }
+.mh-algbar .btn { flex: none; }
+.mh-algbar.ok { border-color: var(--hairline); background: var(--grey-50); }
+.mh-algbar.ok > i { color: var(--text-2); }
+.mh-algbar.ok > b { font-weight: 500; color: var(--text-2); }
+/* Prescriptions: one row per prescription, every medicine on it stacked in the
+   one cell, so a three-item script reads as one thing rather than three rows */
+.mh-rx-items { display: flex; flex-direction: column; gap: 8px; min-width: 190px; }
+.mh-rx-fee { display: inline-flex; flex-direction: column; align-items: flex-start; gap: 4px; }
+.mh-rx .dt td { vertical-align: top; }
+.mh-rx-view { display: flex; flex-direction: column; gap: 8px; }
+.mh-rx-it { display: flex; flex-direction: column; gap: 2px; padding: 10px 12px; border: 1px solid var(--divider); border-radius: 12px; }
+.mh-rx-it small { color: var(--text-2); font-size: 12.5px; }
+.mh-rx-it p { margin: 4px 0 0; font-size: 13px; line-height: 1.5; }
 /* diet */
 .pt-unit { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: center; }
 .pt-unit-tag { display: inline-flex; align-items: center; justify-content: center; min-width: 64px; height: 40px; padding: 0 12px; border: 1px solid var(--field); border-radius: 10px; font-size: 13px; color: var(--text); white-space: nowrap; } .pt-unit > .pt-unit-tag { height: 56px; border-radius: 12px; }
@@ -1137,44 +1165,104 @@ tr.fw-off td { color: var(--text-2); }
    longer status word and a full date both stay on one line */
 .mh-meds .dt th:nth-child(n+2):nth-child(-n+5), .mh-meds .dt td:nth-child(n+2):nth-child(-n+5) { padding-left: 11px; padding-right: 11px; }
 /* the dialog: title and footer stay put, the steps sit between them.
-   Two columns across the top and bottom, a band through the middle: the whole
-   prescription is in view at once instead of three screens of scrolling. */
-.dialog > .cp-dlg { display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
-.cp-head { align-items: center; gap: 14px; padding: 14px 22px; }
+   Two columns across the top and a band across the foot: the whole prescription
+   is in view at once instead of three screens of scrolling. */
+/* The dialog keeps one size whatever is folded open inside it: opening a
+   medicine should change what is on the page, not the shape of the page. The
+   medicines list is pinned to the height it has with everything closed, so the
+   frame can be the height of its contents and still never move. */
+.dialog > .cp-dlg { display: flex; flex-direction: column; max-height: 96vh; min-height: 0; overflow: hidden; }
+.cp-dlg .dlg-body { flex: 0 1 auto; }
+.cp-head { align-items: center; gap: 14px; padding: 14px 22px 10px; border-bottom: 0; }
 .cp-head .cp-ic { width: 40px; height: 40px; font-size: 20px; margin: 0; flex: none; }
-.cp-head-t { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+.cp-head-t { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 0 1 auto; }
+/* Allergies sit beside the title, so they are in front of whoever is signing and
+   the dialog is no taller for them. With none recorded it says so rather than
+   leaving the reader to wonder whether the list was checked. */
+.cp-alg { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 6px; flex: 0 1 auto; min-width: 0; max-width: 62%; margin-left: auto; font-size: 12.5px; color: var(--text-2); }
+.cp-alg > i { font-size: 18px; color: var(--text-2); flex: none; }
+.cp-alg.has > i { color: var(--error); }
+.cp-alg > b { font-weight: 600; color: var(--text); margin-right: 2px; }
+.cp-alg .chip { font-size: 12px; }
+/* a medicine that is already on a current prescription */
+.cp-dup { display: inline-flex; flex: none; cursor: help; }
+.cp-dup-note { grid-column: 1 / -1; display: flex; align-items: flex-start; gap: 7px; margin: 0 0 4px; padding: 8px 10px; border-radius: 10px; background: rgba(var(--c, 239,108,0), .09); color: #8A4300; font-size: 12.5px; line-height: 1.4; }
+.cp-dup-note { --c: 239,108,0; }
+.cp-dup-note > i { font-size: 16px; flex: none; margin-top: 1px; }
 .cp-head-t h2 { margin: 0; font-size: 19px; font-weight: 700; }
 .cp-head-t small { font-size: 13px; color: var(--text-2); }
-.cp-x { border: 1px solid var(--hairline); border-radius: 50%; flex: none; }
-.cp-dlg .dlg-body { padding: 0 22px 14px; min-height: 0; gap: 0; display: block; }
-.cp-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 32px; }
-.cp-grid + .cp-band, .cp-band + .cp-grid, .cp-grid + .cp-grid { border-top: 1px solid var(--divider); }
-.cp-col { padding: 14px 0; display: flex; flex-direction: column; gap: 11px; min-width: 0; }
-.cp-col:first-child { border-right: 1px solid var(--divider); padding-right: 32px; margin-right: -32px; }
-.cp-band { padding: 14px 0; display: flex; flex-direction: column; gap: 11px; }
+.cp-x { flex: none; }
+/* How far the prescription has got. Three parts, so three stops: the one being
+   worked on is named in full, the ones behind it carry a tick. */
+.cp-rail { display: flex; align-items: center; justify-content: center; gap: 0; margin: 0; padding: 0 22px 12px; list-style: none; }
+.cp-rail li { display: flex; align-items: center; gap: 9px; color: var(--text-2); font-size: 14px; }
+.cp-rail li + li::before { content: ""; width: clamp(28px, 9vw, 150px); height: 2px; margin: 0 14px; border-radius: 2px; background: var(--divider); }
+.cp-rail li.on + li::before, .cp-rail li.done + li::before { background: var(--primary); }
+.cp-rail-n { width: 26px; height: 26px; flex: none; border-radius: 50%; border: 1.5px solid var(--divider); display: grid; place-items: center; font-size: 13px; font-weight: 600; background: #fff; }
+.cp-rail li.on { color: var(--primary); font-weight: 600; }
+.cp-rail li.on .cp-rail-n, .cp-rail li.done .cp-rail-n { background: var(--primary); border-color: var(--primary); color: #fff; }
+.cp-rail li.done { color: var(--text); }
+.cp-rail-t { white-space: nowrap; }
+/* Each step is a card of its own rather than two halves of one sheet: the parts
+   then keep their own edges whatever is folded open inside them. */
+.cp-dlg .dlg-body { padding: 0 22px 16px; min-height: 0; gap: 0; display: flex; flex-direction: column; background: var(--grey-50); }
+/* the medicines card carries the most, so it takes the wider half */
+.cp-grid { display: grid; grid-template-columns: 1.08fr 1fr; grid-template-rows: minmax(0, auto) minmax(0, auto); gap: 16px; align-items: stretch; padding-top: 2px; flex: 1 1 auto; min-height: 0; }
+/* Signing is not a third of the width, it is the last thing you do: it runs the
+   whole way across under the other two. The two above then set their own height
+   between them instead of one stretching to meet the bottom of the other. */
+.cp-sign { grid-column: 1 / -1; }
+#cp-sigwrap { display: flex; flex: 1 1 auto; min-height: 0; }
+#cp-sigwrap > * { flex: 1 1 auto; min-height: 0; }
+.cp-dlg .pt-drop { height: 118px; min-height: 0; overflow: hidden; justify-content: center; }
+.cp-card { display: flex; flex-direction: column; gap: 11px; min-width: 0; padding: 14px; border: 1px solid var(--hairline); border-radius: 16px; background: #fff; }
+.cp-card-h { display: flex; align-items: flex-start; gap: 12px; }
+.cp-card-h .cp-step { flex: 1; min-width: 0; }
+.cp-card-h .cp-step-t small { font-size: 12px; }
+.cp-addmed { flex: none; border-radius: 999px; gap: 6px; }
 .cp-step { display: flex; align-items: flex-start; gap: 10px; }
 .cp-num { width: 23px; height: 23px; flex: none; border-radius: 50%; background: var(--primary); color: #fff; display: grid; place-items: center; font-size: 13px; font-weight: 700; }
 .cp-step-t { display: flex; flex-direction: column; gap: 1px; }
 .cp-step-t b { font-size: 15.5px; font-weight: 700; }
 .cp-step-t small { font-size: 12.5px; color: var(--text-2); }
-/* picking a medicine: a tick, a name, nothing else */
-/* the picker keeps its own height so a patient on a dozen medicines does not
-   push the rest of the prescription off the screen */
-.cp-list { display: flex; flex-direction: column; gap: 8px; max-height: 296px; overflow-y: auto; padding-right: 4px; }
+/* Picking a medicine and saying how it is taken are one control: the tick, the
+   name, and — for the one being worked on — its dosage folded out beneath.
+   Only one is open at a time, so a prescription for three never outgrows the
+   window; the rest read back as the line they came to. */
+.cp-list { display: flex; flex-direction: column; gap: 6px; flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+.cp-list > .cp-med { flex: 1 1 auto; max-height: 96px; }
+.cp-addtile { flex: 1 1 auto; min-height: 64px; display: flex; align-items: center; justify-content: center; gap: 8px; border: 1.5px dashed var(--divider); border-radius: 12px; background: none; font: inherit; font-size: 13.5px; color: var(--text-2); cursor: pointer; transition: border-color .12s, color .12s, background .12s; }
+.cp-addtile:hover { border-color: var(--primary); color: var(--primary); background: var(--p04); }
+.cp-addtile i { font-size: 17px; }
+.cp-list > .cp-med.open { flex: 0 0 auto; max-height: none; }
 .cp-list::-webkit-scrollbar { width: 6px; }
-.cp-list::-webkit-scrollbar-thumb { background: rgba(0,0,0,.18); border-radius: 3px; }
-.cp-pickcard { display: flex; align-items: center; gap: 11px; cursor: pointer; border: 1px solid var(--divider); border-radius: 12px; padding: 9px 12px; transition: border-color .12s, background .12s; }
-.cp-pickcard:hover { border-color: var(--p50); }
-.cp-pickcard.on { border-color: var(--primary); background: var(--p04); }
-.cp-pickcard input { appearance: none; width: 19px; height: 19px; margin: 0; flex: none; border: 1.5px solid rgba(0,0,0,.28); border-radius: 5px; display: grid; place-items: center; cursor: pointer; background: #fff; }
-.cp-pickcard input:checked { background: var(--primary); border-color: var(--primary); }
-.cp-pickcard input:checked::after { content: ""; width: 5px; height: 10px; border: solid #fff; border-width: 0 2px 2px 0; transform: rotate(45deg) translate(-1px,-1px); }
-.cp-med-h { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.cp-med-h b { font-size: 14.5px; font-weight: 600; }
-.cp-med-h small { font-size: 12.5px; color: var(--text-2); }
+.cp-list::-webkit-scrollbar-thumb { background: rgba(0,0,0,.16); border-radius: 3px; }
+.cp-med { border: 1px solid var(--divider); border-radius: 12px; background: #fff; transition: border-color .12s, background .12s; }
+.cp-med:hover { border-color: var(--p50); }
+.cp-med.on { border-color: var(--primary); background: var(--p04); }
+.cp-med-top { display: flex; align-items: center; gap: 10px; padding: 0 11px 0 12px; }
+.cp-tick { display: flex; padding: 9px 0; cursor: pointer; }
+.cp-tick input { appearance: none; width: 19px; height: 19px; margin: 0; flex: none; border: 1.5px solid rgba(0,0,0,.28); border-radius: 5px; display: grid; place-items: center; cursor: pointer; background: #fff; }
+.cp-tick input:checked { background: var(--primary); border-color: var(--primary); }
+.cp-tick input:checked::after { content: ""; width: 5px; height: 10px; border: solid #fff; border-width: 0 2px 2px 0; transform: rotate(45deg) translate(-1px,-1px); }
+.cp-med-b { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 1px; padding: 8px 0; background: none; border: 0; font: inherit; color: inherit; text-align: left; cursor: pointer; }
+.cp-med-b b { font-size: 14.5px; font-weight: 600; }
+.cp-med-b small { max-width: 100%; font-size: 12.5px; color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cp-med-b small.need { color: var(--warning); }
+.cp-med-top .chip { flex: none; }
+.cp-caret { flex: none; font-size: 18px; color: var(--text-dis); }
+.cp-med.on .cp-caret { color: var(--text-2); }
+.cp-med-b:hover ~ .cp-caret { color: var(--primary); }
+/* the dosage, folded out under the medicine it belongs to */
+.cp-med-d { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 2px 10px; padding: 2px 12px 11px; }
+.cp-med-d > .ft:last-child { grid-column: 1 / -1; }
+.cp-med-d .field { background: #fff; }
+.cp-med-d input[type=number]::-webkit-inner-spin-button { opacity: 1; height: 28px; }
 /* how it reaches the patient: three cards, not three bare radios */
-.cp-opts { display: flex; flex-direction: column; gap: 8px; }
-.cp-opt { display: flex; align-items: center; gap: 11px; cursor: pointer; border: 1px solid var(--divider); border-radius: 12px; padding: 9px 12px; transition: border-color .12s, background .12s; }
+.cp-opts { display: flex; flex-direction: column; gap: 7px; flex: 1 1 auto; }
+/* they take up the slack in their column but never give any back: squeezed, the
+   third one's line ran under the fee beneath it */
+.cp-opt { flex: 1 0 auto; max-height: 86px; display: flex; align-items: center; gap: 11px; cursor: pointer; border: 1px solid var(--divider); border-radius: 12px; padding: 8px 12px; transition: border-color .12s, background .12s; }
 .cp-opt:hover { border-color: var(--p50); }
 .cp-opt.on { border-color: var(--primary); background: var(--p04); }
 .cp-opt input { appearance: none; width: 19px; height: 19px; margin: 0; border: 2px solid rgba(0,0,0,.4); border-radius: 50%; flex: none; display: grid; place-items: center; cursor: pointer; }
@@ -1185,51 +1273,123 @@ tr.fw-off td { color: var(--text-2); }
 .cp-opt-t { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
 .cp-opt-t b { font-size: 14.5px; font-weight: 600; }
 .cp-opt-t small { font-size: 12.5px; color: var(--text-2); line-height: 1.4; }
-.cp-hint { margin: -8px 0 0; }
-.cp-paybox { border: 1px solid var(--divider); border-radius: 12px; padding: 12px; background: var(--grey-50); display: flex; flex-direction: column; gap: 14px; }
+/* the fee is a line of its own, not a field buried under the dispatch choices */
+.cp-fee { display: flex; align-items: center; gap: 16px; }
+.cp-fee-t { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.cp-fee-t b { font-size: 14px; font-weight: 600; }
+.cp-fee-t small { font-size: 12.5px; color: var(--text-2); line-height: 1.4; }
+.cp-fee .field { flex: none; width: 132px; margin-left: auto; }
+.cp-fee .field .adorn { font-size: 15px; color: var(--text-2); }
+.cp-paybox { border: 1px solid var(--divider); border-radius: 12px; padding: 9px; background: var(--grey-50); display: flex; flex-direction: column; gap: 7px; }
+/* the fold above it already says Payment, so the panel does not ask again */
+.cp-paybox > .sub2, .cp-paybox .ap-sub, .cp-paybox .rx-paybox > .pt-note { display: none; }
 .cp-paybox .pt-seg { display: flex; width: 100%; padding: 4px; background: #fff; }
-.cp-paybox .pt-seg button { flex: 1 1 0; justify-content: center; padding: 9px 6px; font-size: 13px; }
+.cp-paybox .pt-seg button { flex: 1 1 0; justify-content: center; padding: 7px 6px; font-size: 13px; }
 .cp-paybox .field { background: #fff; }
 /* the fee is the field directly above, so the payment step does not repeat it
    back as a locked box; what is left pairs up two to a row */
-.cp-paybox .rx-paybox { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.cp-paybox .rx-paybox { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 12px; }
 .cp-paybox .rx-paybox > .field.dis, .cp-paybox .rx-lockcap { display: none; }
-.cp-paybox .rx-paybox > .pt-note { grid-column: 1 / -1; padding: 9px 12px; font-size: 12.5px; }
-.cp-paybox .ap-sub { padding: 10px 12px; }
-.cp-paybox .ap-sub .body2 { font-size: 12.5px; }
-.cp-count { display: flex; align-items: center; gap: 9px; padding: 9px 13px; border-radius: 10px; background: var(--p08); color: var(--primary-dark, var(--primary)); font-size: 14px; margin-top: auto; }
-.cp-count i { font-size: 18px; }
-/* one compact line per medicine chosen */
-.cp-doses { display: flex; flex-direction: column; gap: 10px; }
-.cp-dose { display: grid; grid-template-columns: 1.25fr .7fr .85fr .6fr 2.2fr; gap: 12px; align-items: end; border: 1px solid var(--divider); border-radius: 12px; padding: 12px; }
-.cp-dose-n { display: flex; flex-direction: column; gap: 5px; align-self: center; min-width: 0; }
-.cp-dose-n b { font-size: 14.5px; font-weight: 600; }
-.cp-dose-n .chip { align-self: flex-start; }
-.cp-empty { margin: 0; }
-/* signing */
-.cp-sig-h { display: flex; align-items: center; gap: 14px; }
-.cp-siglab { font-size: 14px; font-weight: 600; flex: none; }
-.cp-sig-h .pt-seg { flex: 1; display: flex; padding: 4px; }
-.cp-sig-h .pt-seg button { flex: 1 1 0; justify-content: center; }
+.cp-paybox .rx-paybox > .pt-note { grid-column: 1 / -1; padding: 8px 11px; font-size: 12px; line-height: 1.45; }
+.cp-paybox .ap-sub { padding: 9px 11px; gap: 6px; }
+.cp-paybox .ap-sub .body2 { font-size: 12px; line-height: 1.45; }
+/* Signing runs the width of the dialog beneath the other two: who signed on one
+   side, the pad on the other, and nothing to open. */
+
+.cp-sign-b { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.22fr); gap: 16px; align-items: stretch; }
+.cp-sign-id { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+/* the declaration takes the height the pad beside it sets, so the band is even
+   across rather than a tall pad next to two short lines */
+.cp-sign-id .cp-attest { flex: 1 1 auto; align-items: center; padding: 10px 12px; border: 1px solid var(--divider); border-radius: 12px; background: var(--grey-50); }
+.cp-sign-pad { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+/* across the band the label and the two ways of signing read on one line */
+.cp-sigmode { display: flex; align-items: center; gap: 12px; }
+.cp-sigmode > label { flex: none; font-size: 12.5px; color: var(--text-2); }
+.cp-sigmode .cp-sigseg { margin-left: auto; flex: none; }
+.cp-sigmode .pt-seg { display: flex; padding: 4px; }
+.cp-sigmode .pt-seg button { flex: 1 1 0; justify-content: center; gap: 6px; padding: 8px 6px; }
 .cp-attest { align-items: flex-start; gap: 10px; font-size: 12.5px; line-height: 1.45; }
 .cp-attest input { margin: 1px 0 0; flex: none; }
 .cp-attest.err span { color: var(--error); }
 .cp-attest.err input { outline: 2px solid var(--error); outline-offset: 2px; border-radius: 4px; }
-.cp-sig { position: relative; height: 124px; border: 1px solid var(--field); border-radius: 12px; background: #fff; overflow: hidden; }
+.cp-sig { position: relative; height: 118px; border: 1px solid var(--field); border-radius: 12px; background: #fff; overflow: hidden; }
 .cp-sig.err { border-color: var(--error); }
 .cp-sig canvas { display: block; width: 100%; height: 100%; touch-action: none; cursor: crosshair; }
 .cp-sig-hint { position: absolute; inset: 0; display: grid; place-items: center; pointer-events: none; }
+/* display:grid above outruns the hidden attribute, so the stroke says it too */
+.cp-sig-hint[hidden], .cp-sig.has .cp-sig-hint { display: none; }
 .cp-sig-clear { position: absolute; top: 8px; right: 8px; gap: 4px; }
+/* Denser than a form on a page: a prescription is a lot of small facts, and
+   all of them have to stand in one window without it scrolling. */
+.cp-dlg .cp-col { gap: 9px; padding: 12px 0; }
+.cp-dlg .ft { gap: 3px; }
+.cp-dlg .ft > label { font-size: 12.5px; }
+.cp-dlg .ft > .field { min-height: 42px; }
+.cp-dlg .ft > .field input, .cp-dlg .ft > .field select { padding: 9px 0; }
+.cp-dlg .cp-step-t small { line-height: 1.35; }
 /* what is about to be signed, beside the buttons that sign it */
 .cp-foot { gap: 12px; padding: 12px 22px; }
 .cp-sum { display: inline-flex; align-items: center; gap: 7px; margin-right: auto; font-size: 13px; color: var(--text-2); min-width: 0; }
 .cp-sum i { font-size: 16px; flex: none; }
 .cp-foot .btn { border-radius: 999px; min-width: 124px; justify-content: center; }
-@media (max-width: 1100px) {
-  .cp-grid { grid-template-columns: 1fr; gap: 0; }
-  .cp-col:first-child { border-right: 0; padding-right: 0; margin-right: 0; border-bottom: 1px solid var(--divider); }
-  .cp-dose { grid-template-columns: 1fr 1fr; }
-  .cp-dose-n { grid-column: 1 / -1; }
+/* A short window — a 13" laptop with its browser chrome — gets a tighter set of
+   the same parts rather than a scrollbar: smaller dispatch icons, a shorter
+   signature pad, less air around the dialog. Nothing is taken away. */
+@media (max-height: 900px) {
+  .cp-head { padding: 7px 22px 4px; }
+  .cp-head .cp-ic { width: 36px; height: 36px; font-size: 18px; }
+  .cp-foot { padding: 7px 22px; }
+  .cp-dlg .cp-card { gap: 8px; padding: 9px 11px; }
+  .cp-dlg .dlg-body { padding-bottom: 10px; }
+  .cp-grid { gap: 9px; }
+  .cp-grid { grid-template-columns: 1fr 1fr; }
+  .cp-rail { padding-bottom: 6px; }
+  .cp-rail-n { width: 23px; height: 23px; font-size: 12px; }
+  .cp-rail li { font-size: 13px; }
+  .cp-rail li + li::before { margin: 0 10px; }
+  .cp-fee .field { min-height: 46px; }
+
+  .cp-opt { padding: 3px 10px; gap: 9px; }
+  .cp-paybox .rx-paybox { gap: 6px 12px; }
+  .cp-opt-ic { width: 26px; height: 26px; font-size: 15px; border-radius: 8px; }
+  .cp-opt-t small { line-height: 1.35; }
+  .cp-med-b { padding: 7px 0; }
+  .cp-sig { height: 80px; }
+  .cp-dlg .pt-drop { height: 80px; }
+  .cp-sign-b { gap: 11px; }
+  .cp-list > .cp-med { max-height: 82px; }
+  .cp-list { gap: 4px; }
+  .cp-opts { gap: 6px; }
+  /* the second column carries the most, so its hints give way first; the signer
+     is named in the dialog's own subtitle and the fee box explains itself */
+  /* the rail across the top names all three steps, so in a short window the
+     cards keep their titles and let the hint lines go */
+  .cp-card-h .cp-step-t small { display: none; }
+  .cp-fee-t small { display: none; }
+  .cp-med-d { padding-bottom: 9px; }
+  .cp-attest { font-size: 12px; line-height: 1.4; }
+  .cp-paybox .rx-paybox > .pt-note { padding: 6px 9px; font-size: 11px; }
+  /* short enough that the three parts no longer stack: they read across it */
+  .cp-dlg .pt-drop { padding: 8px 12px; gap: 10px; flex-direction: row; }
+  .cp-dlg .pt-drop > i { font-size: 22px; }
+  .cp-dlg .pt-drop > .caption { display: none; }
+  .cp-paybox { padding: 6px; gap: 4px; }
+  .cp-paybox .pt-seg button { padding: 7px 6px; font-size: 12.5px; }
+  .cp-paybox .ap-sub { padding: 7px 9px; gap: 4px; }
+  .cp-paybox .ap-sub .body2 { font-size: 11px; }
+  .cp-paybox .ft > .field { min-height: 36px; }
+  .cp-paybox .ft > .field input, .cp-paybox .ft > .field select { padding: 7px 0; }
+}
+/* The two columns hold down to a narrow window: stacking them is what made the
+   dialog scroll, so it is the last resort rather than the first. */
+@media (max-width: 900px) {
+  .cp-head { flex-wrap: wrap; }
+  .cp-alg { order: 5; flex: 1 1 100%; max-width: none; justify-content: flex-start; margin-left: 0; }
+  .cp-x { margin-left: auto; }
+  .cp-grid { grid-template-columns: 1fr; grid-template-rows: auto; gap: 12px; }
+  .cp-med-d { grid-template-columns: 1fr 1fr; }
+  .cp-fee { flex-wrap: wrap; }
+  .cp-sign-b { grid-template-columns: 1fr; }
   .cp-sum { display: none; }
 }
 }
@@ -2169,3 +2329,5 @@ tr.nr-off td:not(:nth-last-child(-n+2)) { opacity: .55; }
 .bk-info { background: #EEF6FD; color: #1565C0; } .bk-info i { color: #1976D2; }
 .bk-range { display: grid; grid-template-columns: 1fr auto 1fr; gap: 10px; align-items: center; } .bk-range > span { color: var(--primary); }
 .bk-svcs td { white-space: nowrap; } .bk-svcs td:first-child { white-space: normal; min-width: 180px; }
+.mh-rx-no { gap: 3px; align-items: flex-start; }
+.mh-rx-no .chip { margin-top: 3px; }

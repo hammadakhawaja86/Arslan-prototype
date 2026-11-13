@@ -42,12 +42,12 @@
         { id: uid(), mon: 'Oct', day: 12, dow: 'Mon', time: '09:30 AM', dur: 15, title: 'Annual Check-up', dr: 'Dr Simon Achebe', spec: 'General Practice', mode: 'walkin', kind: 'Initial Assessment', loc: 'Westminster Practice, Room 3, 123 High Street, London, SW1A 1AA', status: 'completed', note: ['info', 'Bloods taken. Results shared in Documents.'] },
         { id: uid(), mon: 'Oct', day: 5, dow: 'Mon', time: '10:30 AM', dur: 15, title: 'Follow-up Consultation', dr: 'Dr Simon Achebe', spec: 'Cardiologist', mode: 'online', kind: 'Follow-up', status: 'cancelled', note: ['err', 'Cancelled by the clinic · patient asked to move to a later date.'] }],
       cond: fresh ? [] : [['Type 2 Diabetes', 'Chronic metabolic condition affecting glucose levels', 'Active', 'Weightfall', 'GP'], ['Hypertension', 'High blood pressure requiring monitoring', 'Active', 'Weightfall', 'Clinician'], ['Asthma', 'Respiratory condition with occasional flare-ups', 'Resolved', 'Minor Ops', 'GP'], ['Anxiety', 'Generalised anxiety symptoms', 'Active', 'LeafEase', 'Self']].map(([name, desc, status, source, by]) => ({ id: uid(), name, desc, status, source, by })),
-      meds: fresh ? [] : [['Metformin', 500, 'mg', 'Twice daily', 'Active', '2015-12-12', '', 'Weightfall', 'GP'], ['Ramipril', 5, 'mg', 'Once daily', 'Active', '2021-03-02', '', 'LeafEase', 'Clinician'], ['Salbutamol inhaler', 100, 'mcg', 'As needed', 'Active', '2018-06-15', '', 'Weightfall', 'GP'], ['Sertraline', 50, 'mg', 'Once daily', 'Active', '2024-01-10', '', 'LeafEase', 'Self'], ['Amoxicillin', 500, 'mg', 'Three times daily', 'Completed', '2025-02-01', '2025-02-08', 'Weightfall', 'GP']].map(([name, dose, unit, freq, status, start, end, source, by]) => ({ id: uid(), name, dose, unit, freq, status, start, end, source, by })),
+      meds: fresh ? [] : [['Metformin', 500, 'mg', 'Twice daily', 'Active', '2015-12-12', '', 'Weightfall', 'GP', 'Repeat'], ['Ramipril', 5, 'mg', 'Once daily', 'Active', '2021-03-02', '', 'LeafEase', 'Clinician', 'Repeat'], ['Salbutamol inhaler', 100, 'mcg', 'As needed', 'Active', '2018-06-15', '', 'Weightfall', 'GP', 'Repeat'], ['Sertraline', 50, 'mg', 'Once daily', 'Active', '2024-01-10', '', 'LeafEase', 'Self', 'Repeat'], ['Amoxicillin', 500, 'mg', 'Three times daily', 'Completed', '2025-02-01', '2025-02-08', 'Weightfall', 'GP', 'Acute']].map(([name, dose, unit, freq, status, start, end, source, by, course]) => ({ id: uid(), name, dose, unit, freq, status, start, end, source, by, course })),
       alg: fresh ? [] : [['Penicillin', 'High', 'Skin rash and swelling', 'Weightfall', 'GP'], ['Latex', 'Medium', 'Irritation', 'Clinician', 'Self'], ['Peanuts', 'High', 'Anaphylaxis — carries an adrenaline pen', 'Clinician', 'GP'], ['Ibuprofen', 'Low', 'Stomach upset', 'Clinician', 'Clinician']].map(([name, severity, reaction, source, by]) => ({ id: uid(), name, severity, reaction, source, by })),
       docs: fresh ? [] : [['Form-NQH-2026', 'Questionnaires', 'Weightfall - initial assessment'], ['Surgical Notes.pdf', 'Documents', ''], ['CBC with Differential.pdf', 'Blood Reports', ''], ['Blood test.jpg', 'Blood Reports', ''], ['Informed Consent.pdf', 'Consent Forms', 'Annual Check-up'], ['PHQ-9', 'Questionnaires', 'Weight management programme'], ['Six-month review.pdf', 'Review Forms', '']].map(([name, cat, req], i) => ({ id: uid(), name, cat, req, at: `${String(15 - i).padStart(2, '0')}/09/2026, 11:00 am`, by: 'Me (Muhammad Arslan)' })),
       bills: fresh ? [] : [['Initial Weight Management Assessment', 'Payment Complete', 'Service', 65], ['GLP-1 Monthly Package', 'Awaiting Payment', 'Package', 199], ['Follow-up Consultation', 'Awaiting Payment', 'Service', 45], ['Blood Test Panel', 'Payment Complete', 'Service', 85], ['Follow-up Consultation', 'Cancelled', 'Service', 45], ['GLP-1 Monthly Package', 'Payment Failed', 'Package', 199]].map(([name, status, kind, price], i) => ({ id: uid(), name, status, kind, price, date: `${String(20 - i * 3).padStart(2, '0')}/09/2026` })),
       refunds: fresh ? [] : [['Follow-up Consultation', 'Refunded', 'Service', 'Patient Cancellation', 45], ['GLP-1 Monthly Package', 'Awaiting', 'Package', 'Clinic Cancellation', 199], ['Initial Weight Management Assessment', 'Awaiting', 'Service', 'Patient Cancellation', 65], ['Blood Test Panel', 'Rejected', 'Service', 'Patient Cancellation', 85]].map(([name, status, kind, type, amount], i) => ({ id: uid(), name, status, kind, type, amount, date: `${16 - i}/09/2026 06:12 PM` })),
-      f: { req: 'All', ap: 'all', apType: 'All', apQ: '', mhOpen: { c: true, m: true, a: true }, docCat: 'All', docQ: '', bill: 'records', bQ: '', bStatus: 'All Status', bKind: 'All Types' }
+      f: { req: 'All', ap: 'all', apType: 'All', apQ: '', mhTab: 'meds', medF: 'Active', docCat: 'All', docQ: '', bill: 'records', bQ: '', bStatus: 'All Status', bKind: 'All Types' }
     }; };
   const rec = PT.rec = p => { const s = App.S.ptRec = App.S.ptRec || {}; return s[p.id] = s[p.id] || seed(p); };
 
@@ -131,16 +131,22 @@
      Create prescription; and a medicine the patient was put on somewhere else
      is recorded onto the list so it can be prescribed from here later. */
   const editable = x => x.by !== 'GP';
+  /* Writing a prescription is a permission and a clinical role, not something
+     every screen that lists medicines offers. Everything that starts or signs
+     one asks here, and the signing step asks again. */
+  const mayRx = () => App.can('Prescriptions', 'Create');
+  const mayRxList = () => App.can('Prescriptions', 'View List');
+  const rxDeny = () => App.snack('Your role cannot create prescriptions.', 'error');
   /* what a row shows once a prescription has gone out for it */
   const issTags = m => { const D = CPD[m.dispatch], t = [];
     if (D) t.push(chip(D[0], 't-blue', D[1]));
     if (m.script) t.push(chip(m.script, 't-grey', 'ri-file-list-3-line'));
     if (m.fee === 'Paid prescription') t.push(chip(`${m.pay || 'Fee'} · £${Number(m.feeAmt || 0).toFixed(2)}`, m.payStatus === 'Paid' ? 't-green' : 't-orange', m.payStatus === 'Paid' ? 'ri-checkbox-circle-line' : 'ri-time-line'));
     else if (m.fee) t.push(chip('Free prescription', 't-grey', 'ri-price-tag-3-line'));
-    return t.length ? `<span class="row g4 wrap mh-rxtags">${t.join('')}</span>` : ''; };
+    return t.join(''); };
   /* the pill writes a prescription for this one medicine: the same dialog as the
      header button, opened with just this row ticked */
-  const rxBtn = x => `<button class="icon-btn s20 mh-rx-btn" data-act="cp-one" data-id="${x.id}" aria-label="Create a prescription for ${esc(x.name)}" title="Create prescription"><i class="ri-capsule-line"></i></button>`;
+  const rxBtn = x => !mayRx() ? '' : `<button class="icon-btn s20 mh-rx-btn" data-act="cp-one" data-id="${x.id}" aria-label="Create a prescription for ${esc(x.name)}" title="Create prescription"><i class="ri-capsule-line"></i></button>`;
   /* Every row can be opened and read. Only the ones this practice owns can be
      changed — a GP import keeps a lock in place of edit and delete. */
   const rowAct = (kind, x) => `<span class="row-actions">${kind === 'meds' ? rxBtn(x) : ''}<button class="icon-btn s20" data-act="mh-view" data-k="${kind}" data-id="${x.id}" aria-label="View ${esc(x.name)}" title="View"><i class="ri-eye-line"></i></button>${editable(x)
@@ -148,19 +154,123 @@
     : `<span class="icon-btn s20 mh-lock" role="img" aria-label="Imported from the GP record — read only" title="Imported from the GP record — read only"><i class="ri-lock-line"></i></span>`}</span>`;
   const stChip = s => s === 'Active' ? chip('Active', 't-green', 'ri-checkbox-circle-line') : chip(s, 't-grey', 'ri-history-line');
   const sevChip = s => chip(s, s === 'High' ? 't-red' : s === 'Medium' ? 't-orange' : 't-grey');
-  const box = (k, icon, t, actions, body, r) => `<section class="card pt-box"><div class="pt-box-h"><h2 class="pt-h"><i class="${icon}"></i>${t}</h2><span class="grow"></span>${actions}<button class="icon-btn s20" data-act="mh-tog" data-k="${k}" aria-expanded="${r.f.mhOpen[k]}" aria-label="${r.f.mhOpen[k] ? 'Collapse' : 'Expand'} ${t}"><i class="${r.f.mhOpen[k] ? 'ri-arrow-up-s-line' : 'ri-arrow-down-s-line'}"></i></button></div>${r.f.mhOpen[k] ? `<div class="pt-box-b">${body}</div>` : ''}</section>`;
-  /* one list, current medicines first. The Status column already says which is
-     which, so a filter that hides half the record only gets in the way. */
-  const medList = r => [...r.meds].sort((a, b) => (a.status === 'Active' ? 0 : 1) - (b.status === 'Active' ? 0 : 1));
+  /* Whether a medicine is a one-off course or something the patient stays on is
+     a property of the course, not of the row's status, and the record never
+     carried it. It is read through here and nowhere else, so a row written
+     before the field existed — or imported read-only from a GP — still lands in
+     one of the two course tabs rather than in neither. */
+  const courseOf = m => m.course || (m.end ? 'Acute' : 'Repeat');
+  const coChip = m => courseOf(m) === 'Repeat' ? chip('Repeat', 't-blue', 'ri-loop-right-line') : chip('Acute', 't-grey', 'ri-timer-line');
+  const algChip = a => chip(`${a.name} · ${a.severity}`, a.severity === 'High' ? 't-red' : a.severity === 'Medium' ? 't-orange' : 't-grey');
+  const box = (icon, t, actions, body) => `<section class="card pt-box"><div class="pt-box-h"><h2 class="pt-h"><i class="${icon}"></i>${t}</h2><span class="grow"></span>${actions}</div><div class="pt-box-b">${body}</div></section>`;
 
-  PT.tabs['medical-history'] = p => { const r = rec(p); const meds = medList(r);
-    const sel = new Set(cpSelIds(r)), allOn = meds.length > 0 && sel.size === meds.length, someOn = sel.size > 0;
-    const nAct = r.meds.filter(m => m.status === 'Active').length;
+  /* One section at a time instead of three tables stacked down the page. The
+     chosen one is kept per patient, so moving between patients does not carry
+     a tab with it, and an unknown value falls back rather than blanking. */
+  const MHT = [['cond', 'Medical Conditions', 'ri-heart-pulse-line'], ['meds', 'Medications', 'ri-capsule-line'], ['alg', 'Allergies', 'ri-virus-line'], ['rx', 'Prescriptions', 'ri-file-list-3-line']];
+  const MEDF = ['Active', 'Acute', 'Repeat'];
+  const mhTabs = () => MHT.filter(([k]) => k !== 'rx' || mayRxList());
+  const mhTab = r => mhTabs().some(([k]) => k === r.f.mhTab) ? r.f.mhTab : 'meds';
+  const medF = r => MEDF.includes(r.f.medF) ? r.f.medF : 'Active';
+  /* Active is a status; acute and repeat describe the course. They are two ways
+     of reading the same list rather than three slices of one, so a medicine the
+     patient is on now stands in Active and in its own course tab — which is why
+     every row shows both, a Status chip and a course chip. */
+  const medIn = (m, k) => k === 'Active' ? m.status === 'Active' : courseOf(m) === k;
+  /* the whole list, current medicines first: Create prescription reads this one,
+     so a tab can never hide a medicine from the prescriber */
+  const medList = r => [...r.meds].sort((a, b) => (a.status === 'Active' ? 0 : 1) - (b.status === 'Active' ? 0 : 1));
+  const medShown = r => medList(r).filter(m => medIn(m, medF(r)));
+
+  const condBox = r => box('ri-heart-pulse-line', `Medical Conditions (${r.cond.filter(c => c.status === 'Active').length} Active)`,
+    `<button class="btn primary" data-act="mh-add" data-k="cond"><i class="ri-add-circle-line"></i>Add Medical Condition</button>`,
+    `<div class="mh-cond">${table(['Condition', 'Description', 'Status', 'Source', 'Added By', 'Action'], r.cond.map(c => `<tr><td><b class="fw5">${esc(c.name)}</b></td><td>${esc(c.desc)}</td><td>${stChip(c.status)}</td><td>${esc(c.source)}</td><td>${esc(c.by)}</td><td>${rowAct('cond', c)}</td></tr>`), 6, 'No medical conditions recorded.')}</div>`);
+
+  const algBox = r => box('ri-virus-line', `Allergies (${r.alg.length})`,
+    `<button class="btn primary" data-act="mh-add" data-k="alg"><i class="ri-add-circle-line"></i>Add New Allergy</button>`,
+    `<div class="mh-alg">${table(['Allergy', 'Severity', 'Reaction', 'Source', 'Added By', 'Action'], r.alg.map(a => `<tr><td><b class="fw5">${esc(a.name)}</b></td><td>${sevChip(a.severity)}</td><td>${esc(a.reaction)}</td><td>${esc(a.source)}</td><td>${esc(a.by)}</td><td>${rowAct('alg', a)}</td></tr>`), 6, 'No known allergies recorded.')}</div>`);
+
+  /* Allergies used to sit on the same screen as the medicines. They are a tab
+     away now, and this is the tab a prescription is written from, so what the
+     patient reacts to stays in front of whoever is writing it. */
+  const algStrip = r => `<div class="mh-algbar ${r.alg.length ? 't-red' : 'ok'}"><i class="${r.alg.length ? 'ri-alert-line' : 'ri-shield-check-line'}"></i><b>${r.alg.length ? 'Allergies' : 'No known allergies recorded'}</b>${r.alg.length ? `<span class="row g4 wrap">${r.alg.map(algChip).join('')}</span><span class="grow"></span><button class="btn text sm" data-act="mh-tab" data-v="alg">See all<i class="ri-arrow-right-s-line"></i></button>` : ''}</div>`;
+
+  const medsBox = r => { const shown = medShown(r), f = medF(r), may = mayRx(), sel = new Set(may ? cpSelIds(r) : []);
+    const onShown = shown.filter(m => sel.has(m.id)).length;
+    const allOn = shown.length > 0 && onShown === shown.length, someOn = onShown > 0, away = sel.size - onShown;
+    /* counted off the whole list, never off the tab being looked at */
+    const cnt = k => r.meds.filter(m => medIn(m, k)).length;
+    const empty = !r.meds.length ? 'No medications recorded.'
+      : f === 'Active' ? 'Nothing on this record is being taken right now.'
+      : f === 'Acute' ? 'No one-off courses on this record.' : 'No repeat medications on this record.';
+    return box('ri-capsule-line', `Medications (${cnt('Active')} Active)`,
+      `${may ? `<button class="btn outlined" data-act="cp-open"><i class="ri-quill-pen-line"></i>Create prescription${sel.size ? ` (${sel.size})` : ''}</button>` : ''}<button class="btn primary" data-act="mh-add" data-k="meds"><i class="ri-add-circle-line"></i>Add Medication</button>`,
+      `${algStrip(r)}
+      <div class="mh-medf">${seg('med-f', MEDF.map(k => [k, `${k} (${cnt(k)})`]), f)}${may && away > 0 ? `<span class="caption mh-away"><i class="ri-information-line"></i>${away} more selected on another tab</span>` : ''}</div>
+      <div class="mh-meds">${table([`${may ? `<label class="cbx cp-box ${allOn ? '' : someOn ? 'half' : ''}"><input type="checkbox" data-ch="cp-all" ${allOn ? 'checked' : ''} aria-label="Select every medication on this tab"></label>` : ''}Medication`, 'Frequency', 'Status', 'Start Date', 'End Date', 'Source', 'Added By', 'Action'], shown.map(m => `<tr><td><span class="row g10 cp-cell">${may ? `<label class="cbx cp-box"><input type="checkbox" data-ch="cp-pick" data-id="${m.id}" ${sel.has(m.id) ? 'checked' : ''} aria-label="Select ${esc(m.name)}"></label>` : ''}<span class="cell2"><b class="fw5">${esc(m.name)}</b><small class="mh-dose">${esc(m.dose)} ${esc(m.unit)}</small>${m.ext ? `<small>Prescribed by ${esc(m.prescriber)} · ${esc(m.org)}</small>` : ''}${m.prescribed ? `<small>Prescription issued ${esc(m.issued)} by ${esc(m.prescriber)}</small>` : ''}<span class="row g4 wrap mh-rxtags">${coChip(m)}${m.ext ? `${/^Patient/.test(m.verify || '') ? chip('Unverified', 't-orange', 'ri-error-warning-line') : chip('Verified', 't-green', 'ri-verified-badge-line')}${m.cd ? chip('Controlled drug', 't-red', 'ri-shield-keyhole-line') : ''}` : ''}${m.prescribed ? issTags(m) : ''}</span></span></span></td><td>${esc(m.freq)}</td><td>${stChip(m.status)}</td><td>${PT.dmy(m.start)}</td><td>${m.end ? PT.dmy(m.end) : '—'}</td><td>${esc(m.source)}</td><td>${esc(m.by)}</td><td>${rowAct('meds', m)}</td></tr>`), 8, empty)}</div>`); };
+
+
+  /* ---------- Prescriptions ----------
+     Every prescription written for this patient, current and past — the record
+     Create prescription writes and the dispensing queue reads. Until now a
+     prescription only showed as chips on the medicine it was for; here each one
+     is a row of its own, with all of its medicines on it. */
+  const rxScripts = r => { App.IV?.seedRx?.(); return r.scripts || []; };
+  const rxDate = x => { const d = new Date(x.issuedAt || x.at); return isNaN(d) ? null : d; };
+  const rxDays = it => parseInt(it.dur, 10) || 0;
+  /* Current while the course written on it is still running; with no length on
+     it, for as long as the medicine is still active on the record. One with no
+     medicine left to match it to stays current: nothing says it has ended. */
+  const rxCurrent = (r, x) => { const d = rxDate(x), items = x.items || [];
+    const open = items.filter(it => !rxDays(it));
+    if (!open.length) return !!d && Date.now() < d.getTime() + Math.max(...items.map(rxDays), 0) * 864e5;
+    return open.some(it => { const m = r.meds.find(m => m.id === it.id) || r.meds.find(m => m.name.toLowerCase() === String(it.name).toLowerCase());
+      return !m || m.status === 'Active'; }); };
+  const rxList = r => rxScripts(r).map(x => ({ x, now: rxCurrent(r, x), d: rxDate(x) }))
+    .sort((a, b) => (b.now - a.now) || ((b.d || 0) - (a.d || 0)));
+  const rxDmy = d => d ? d.toLocaleDateString('en-GB') : '—';
+  const rxQty = it => [`${it.qty} ${it.qtyUnit || ''}`.trim(), rxDays(it) ? `${rxDays(it)} days` : ''].filter(Boolean).join(' · ');
+  const rxFee = x => x.fee === 'Paid prescription'
+    ? `<span class="cell2"><b class="fw5">£${Number(x.feeAmt || 0).toFixed(2)}</b><small>${esc(x.pay || '')}</small></span>${chip(x.payStatus || 'Awaiting Payment', x.payStatus === 'Paid' ? 't-green' : 't-orange', x.payStatus === 'Paid' ? 'ri-checkbox-circle-line' : 'ri-time-line')}`
+    : chip('Free', 't-grey', 'ri-price-tag-3-line');
+  const rxState = now => now ? chip('Current', 't-green', 'ri-checkbox-circle-line') : chip('Completed', 't-grey', 'ri-history-line');
+
+  const rxBox = r => { const L = rxList(r);
+    return box('ri-file-list-3-line', `Prescriptions (${L.filter(e => e.now).length} Current)`,
+      mayRx() ? `<button class="btn outlined" data-act="cp-open"><i class="ri-quill-pen-line"></i>Create prescription</button>` : '',
+      `<div class="mh-rx">${table(['Prescription', 'Medicines', 'Prescriber', 'How it reaches them', 'Fee', 'Action'], L.map(({ x, now, d }) => { const D = CPD[x.dispatch];
+        return `<tr><td><span class="cell2 mh-rx-no"><b class="fw5">${esc(x.no)}</b><small>Issued ${rxDmy(d)}</small>${rxState(now)}</span></td>
+          <td><span class="mh-rx-items">${(x.items || []).map(it => `<span class="cell2"><b class="fw5">${esc(it.name)} ${esc(it.dose)} ${esc(it.unit)}</b><small>${esc(rxQty(it))}</small></span>`).join('')}</span></td>
+          <td><span class="cell2"><b class="fw5">${esc(x.by || '—')}</b><small>${esc(x.reg || '')}</small></span></td>
+          <td>${D ? chip(D[0], 't-blue', D[1]) : '—'}</td>
+          <td><span class="mh-rx-fee">${rxFee(x)}</span></td>
+          <td><span class="row-actions"><button class="icon-btn s20" data-act="rx-view" data-id="${esc(x.no)}" aria-label="View prescription ${esc(x.no)}" title="View"><i class="ri-eye-line"></i></button></span></td></tr>`; }), 6, 'No prescriptions have been written for this patient yet.')}</div>`); };
+
+  /* the whole prescription, as it was signed: directions are too long for a row */
+  acts['rx-view'] = el => { if (!mayRxList()) return; const r = rec(cur()), e = rxList(r).find(e => e.x.no === el.dataset.id); if (!e) return; const { x, now, d } = e, D = CPD[x.dispatch];
+    App.dialog(modal('ri-file-list-3-line', esc(x.no), `Issued ${rxDmy(d)} by ${esc(x.by || '—')}${x.org ? ', ' + esc(x.org) : ''}`,
+      `<div class="row g8 wrap">${rxState(now)}${D ? chip(D[0], 't-blue', D[1]) : ''}</div>
+      <b class="sub2">Medicines</b>
+      <div class="mh-rx-view">${(x.items || []).map(it => `<div class="mh-rx-it"><b class="fw5">${esc(it.name)} ${esc(it.dose)} ${esc(it.unit)}</b><small>${esc(rxQty(it))}</small>${it.dirs ? `<p>${esc(it.dirs)}</p>` : ''}</div>`).join('')}</div>
+      <b class="sub2">Signed</b>${kv([['Prescriber', esc(x.by || '—')], ['Registration', esc(x.reg || '—')], ['Organisation', esc(x.org || '—')], ['Signature', x.sig === 'Drawn' ? 'Drawn by hand' : x.sig ? esc(x.sig) : '—']])}
+      <b class="sub2">Fee</b>${kv(x.fee === 'Paid prescription' ? [['Amount', `£${Number(x.feeAmt || 0).toFixed(2)}`], ['Method', esc(x.pay || '—')], ['Status', esc(x.payStatus || '—')]] : [['Amount', 'Free prescription']])}`,
+      `<button class="btn outlined lg" data-act="close-modal">Close</button>`, 'green', 'md-dlg'), { width: 560 }); };
+
+  PT.tabs['medical-history'] = p => { const r = rec(p), tab = mhTab(r);
+    const n = { cond: r.cond.filter(c => c.status === 'Active').length, meds: r.meds.filter(m => m.status === 'Active').length, alg: r.alg.length, rx: rxScripts(r).length };
     return title('Medical History') + `<div class="stack g16">
-      ${box('c', 'ri-heart-pulse-line', `Medical Conditions (${r.cond.filter(c => c.status === 'Active').length} Active)`, `<button class="btn primary" data-act="mh-add" data-k="cond"><i class="ri-add-circle-line"></i>Add Medical Condition</button>`, `<div class="mh-cond">${table(['Condition', 'Description', 'Status', 'Source', 'Added By', 'Action'], r.cond.map(c => `<tr><td><b class="fw5">${esc(c.name)}</b></td><td>${esc(c.desc)}</td><td>${stChip(c.status)}</td><td>${esc(c.source)}</td><td>${esc(c.by)}</td><td>${rowAct('cond', c)}</td></tr>`), 6, 'No medical conditions recorded.')}</div>`, r)}
-      ${box('m', 'ri-capsule-line', `Medications (${nAct} Active)`, `<button class="btn outlined" data-act="cp-open"><i class="ri-quill-pen-line"></i>Create prescription${someOn ? ` (${sel.size})` : ''}</button><button class="btn primary" data-act="mh-add" data-k="meds"><i class="ri-add-circle-line"></i>Add Medication</button>`, `<div class="mh-meds">${table([`<label class="cbx cp-box ${allOn ? '' : someOn ? 'half' : ''}"><input type="checkbox" data-ch="cp-all" ${allOn ? 'checked' : ''} aria-label="Select all medications"></label>Medication`, 'Frequency', 'Status', 'Start Date', 'End Date', 'Source', 'Added By', 'Action'], meds.map(m => `<tr><td><span class="row g10 cp-cell"><label class="cbx cp-box"><input type="checkbox" data-ch="cp-pick" data-id="${m.id}" ${sel.has(m.id) ? 'checked' : ''} aria-label="Select ${esc(m.name)}"></label><span class="cell2"><b class="fw5">${esc(m.name)}</b><small class="mh-dose">${esc(m.dose)} ${esc(m.unit)}</small>${m.ext ? `<small>Prescribed by ${esc(m.prescriber)} · ${esc(m.org)}</small><span class="row g4 wrap mh-rxtags">${/^Patient/.test(m.verify || '') ? chip('Unverified', 't-orange', 'ri-error-warning-line') : chip('Verified', 't-green', 'ri-verified-badge-line')}${m.cd ? chip('Controlled drug', 't-red', 'ri-shield-keyhole-line') : ''}</span>` : ''}${m.prescribed ? `<small>Prescription issued ${esc(m.issued)} by ${esc(m.prescriber)}</small>${issTags(m)}` : ''}</span></span></td><td>${esc(m.freq)}</td><td>${stChip(m.status)}</td><td>${PT.dmy(m.start)}</td><td>${m.end ? PT.dmy(m.end) : '—'}</td><td>${esc(m.source)}</td><td>${esc(m.by)}</td><td>${rowAct('meds', m)}</td></tr>`), 8, 'No medications recorded.')}</div>`, r)}
-      ${box('a', 'ri-virus-line', 'Allergies', `<button class="btn primary" data-act="mh-add" data-k="alg"><i class="ri-add-circle-line"></i>Add New Allergy</button>`, `<div class="mh-alg">${table(['Allergy', 'Severity', 'Reaction', 'Source', 'Added By', 'Action'], r.alg.map(a => `<tr><td><b class="fw5">${esc(a.name)}</b></td><td>${sevChip(a.severity)}</td><td>${esc(a.reaction)}</td><td>${esc(a.source)}</td><td>${esc(a.by)}</td><td>${rowAct('alg', a)}</td></tr>`), 6, 'No known allergies recorded.')}</div>`, r)}</div>`; };
-  acts['mh-tog'] = el => { const f = rec(cur()).f.mhOpen; f[el.dataset.k] = !f[el.dataset.k]; App.render(); };
+      <div class="card pt-segcard mh-bar">${seg('mh-tab', mhTabs().map(([k, t, i]) => [k, `${t} (${n[k]})`, i]), tab)}</div>
+      ${tab === 'cond' ? condBox(r) : tab === 'alg' ? algBox(r) : tab === 'rx' ? rxBox(r) : medsBox(r)}</div>`; };
+  /* the page is rebuilt on every change, and a shorter one clamps the scroll —
+     so where the reader was is put back by hand */
+  const mhGo = (k, v) => { const r = rec(cur()), y = scrollY; r.f[k] = v; App.render(); scrollTo(0, y); };
+  /* A row saved onto a tab you are not looking at reads as nothing happening, so
+     the view moves to where the row actually is. */
+  const medReveal = (r, ms) => { r.f.mhTab = 'meds';
+    const n = k => ms.filter(m => medIn(m, k)).length;
+    r.f.medF = MEDF.reduce((best, k) => n(k) > n(best) ? k : best, medF(r)); };
+  acts['mh-tab'] = el => mhGo('mhTab', el.dataset.v);
+  acts['med-f'] = el => mhGo('medF', el.dataset.v);
 
   const SRC = ['Weightfall', 'LeafEase', 'Clinician', 'Minor Ops'], BY = ['Clinician', 'Self', 'GP'];
   const MH = {
@@ -169,7 +279,8 @@
   };
   const mhOpen = (k, x) => { const [icon, t, sub, body] = MH[k];
     App.dialog(modal(icon, `${x.id ? 'Edit' : 'Add'} ${t}`, x.id ? `Update ${esc(x.name)}` : sub, body(x), `<button class="btn outlined lg" data-act="close-modal">Cancel</button><button class="btn primary lg" data-act="mh-save" data-k="${k}" data-id="${x.id || ''}">${x.id ? 'Save changes' : 'Add ' + MH[k][5]}</button>`, 'green', 'md-dlg'), { width: 540 }); };
-  acts['mh-save'] = el => { const k = el.dataset.k, d = formData(); if (!needs(d, MH[k][4])) return; const list = rec(cur())[k];
+  acts['mh-save'] = el => { const k = el.dataset.k, d = formData(); if (!needs(d, MH[k][4])) return; const r = rec(cur()), list = r[k];
+    r.f.mhTab = k === 'cond' ? 'cond' : 'alg';
     const x = list.find(i => i.id === el.dataset.id); if (x) Object.assign(x, d); else list.unshift({ id: uid(), ...d });
     App.closeModal(); App.render(); App.snack(`${d.name} ${x ? 'updated' : 'added to the medical history'}.`); };
   acts['mh-del'] = el => { const k = el.dataset.k, x = rec(cur())[k].find(i => i.id === el.dataset.id);
@@ -187,12 +298,12 @@
   const RX_VERIFY = ['Patient reported — not yet verified', 'Verified against a document'];
   const MDREQ = { name: 'n', dose: 'd', freq: 'f', start: 's' };
   let md = null, mdKey = 0;
-  const mdBlank = () => ({ k: ++mdKey, name: '', dose: '', unit: 'mg', freq: '', start: '', end: '', status: 'Active', cd: false });
+  const mdBlank = () => ({ k: ++mdKey, name: '', dose: '', unit: 'mg', freq: '', start: '', end: '', status: 'Active', course: 'Repeat', cd: false });
 
   const mdRead = () => { const f = App.$('#pt-form'); if (!md || !f) return;
     const d = Object.fromEntries(new FormData(f));
     md.rows.forEach(v => Object.assign(v, { name: d['n' + v.k] ?? v.name, dose: d['d' + v.k] ?? v.dose, unit: d['u' + v.k] || v.unit,
-      freq: d['f' + v.k] ?? v.freq, start: d['s' + v.k] ?? v.start, end: d['e' + v.k] ?? v.end, status: d['st' + v.k] || v.status, cd: !!d['cd' + v.k] }));
+      freq: d['f' + v.k] ?? v.freq, start: d['s' + v.k] ?? v.start, end: d['e' + v.k] ?? v.end, status: d['st' + v.k] || v.status, course: d['co' + v.k] || v.course, cd: !!d['cd' + v.k] }));
     if (d.source) md.source = d.source; if (d.by) md.by = d.by;
     ['prescriber', 'org', 'infoSrc', 'verify'].forEach(x => { if (d[x] !== undefined) md.prov[x] = d[x]; });
     md.attest = !!d.attest; };
@@ -203,7 +314,8 @@
     <div class="md-dose">${FT('Dosage', 'd' + v.k, v.dose, { req: true, type: 'number' })}${ST('Unit', 'u' + v.k, MEDU, v.unit, { req: true })}</div>
     ${FT('Frequency', 'f' + v.k, v.freq, { req: true, ph: 'e.g. Once daily' })}
     <div class="g2">${FT('Start date', 's' + v.k, v.start, { req: true, type: 'date' })}${FT('End date', 'e' + v.k, v.end, { type: 'date' })}</div>
-    <div class="g2 md-last">${ST('Status', 'st' + v.k, ['Active', 'Completed', 'Stopped'], v.status, { req: true })}<label class="cbx md-cd"><input type="checkbox" name="cd${v.k}" ${v.cd ? 'checked' : ''}>Controlled drug</label></div>
+    <div class="g2">${ST('Status', 'st' + v.k, ['Active', 'Completed', 'Stopped'], v.status, { req: true })}${ST('Course', 'co' + v.k, ['Repeat', 'Acute'], v.course, { req: true })}</div>
+    <label class="cbx md-cd"><input type="checkbox" name="cd${v.k}" ${v.cd ? 'checked' : ''}>Controlled drug</label>
   </div>`;
 
   const mdModal = () => { const r = rec(cur()), n = md.rows.length, edit = !!md.editId, other = md.src === 'other';
@@ -224,7 +336,7 @@
         : `<div class="g2">${ST('Source', 'source', SRC, md.source, { req: true })}${ST('Added by', 'by', BY, md.by, { req: true })}</div>`}`,
       `<button class="btn outlined lg" data-act="close-modal">Cancel</button><button class="btn primary lg" data-act="med-save">${edit ? 'Save changes' : n > 1 ? `Add ${n} medications` : 'Add medication'}</button>`, 'green', 'md-dlg'), { width: 600 }); };
 
-  const mdOpen = x => { md = { rows: [x ? { ...mdBlank(), ...x, dose: x.dose ?? '' } : mdBlank()], editId: x ? x.id : '',
+  const mdOpen = x => { md = { rows: [x ? { ...mdBlank(), ...x, dose: x.dose ?? '', course: x ? courseOf(x) : 'Repeat' } : mdBlank()], editId: x ? x.id : '',
       src: x && x.ext ? 'other' : 'here', source: (x && x.source) || 'LeafEase', by: (x && x.by) || 'Clinician',
       prov: { prescriber: (x && x.prescriber) || '', org: (x && x.org) || '', infoSrc: (x && x.infoSrc) || '', verify: (x && x.verify) || '' },
       file: (x && x.evidence) || '', attest: !!x };
@@ -235,7 +347,7 @@
   const VIEW = {
     cond: ['ri-heart-add-line', 'Medical condition', x => [['Condition', x.name], ['Description', x.desc], ['Status', x.status], ['Source', x.source], ['Added by', x.by]]],
     alg: ['ri-virus-line', 'Allergy', x => [['Allergy', x.name], ['Severity', x.severity], ['Reaction', x.reaction], ['Source', x.source], ['Added by', x.by]]],
-    meds: ['ri-capsule-line', 'Medication', x => [['Medicine', x.name], ['Dosage', `${x.dose} ${x.unit}`], ['Frequency', x.freq], ['Status', x.status],
+    meds: ['ri-capsule-line', 'Medication', x => [['Medicine', x.name], ['Dosage', `${x.dose} ${x.unit}`], ['Frequency', x.freq], ['Status', x.status], ['Course', courseOf(x)],
       ['Start date', PT.dmy(x.start)], ['End date', x.end ? PT.dmy(x.end) : 'Ongoing'], ['Source', x.source], ['Added by', x.by],
       ...(x.cd ? [['Controlled drug', 'Yes']] : [])]]
   };
@@ -271,10 +383,11 @@
       ? { source: 'External', by: 'Clinician', ext: true, prescriber: md.prov.prescriber, org: md.prov.org, infoSrc: md.prov.infoSrc, verify: md.prov.verify || RX_VERIFY[0], evidence: md.file || '' }
       : { source: md.source, by: md.by, ext: false, prescriber: '', org: '', infoSrc: '', verify: '', evidence: '' };
     if (md.editId) { const x = r.meds.find(i => i.id === md.editId), v = md.rows[0];
-      Object.assign(x, base, { name: v.name, dose: +v.dose, unit: v.unit, freq: v.freq, start: v.start, end: v.end, status: v.status, cd: v.cd });
-      md = null; App.closeModal(); App.render(); return App.snack(`${x.name} updated.`); }
-    md.rows.forEach(v => r.meds.unshift({ id: uid(), ...base, name: v.name, dose: +v.dose, unit: v.unit, freq: v.freq, start: v.start, end: v.end, status: v.status, cd: v.cd }));
+      Object.assign(x, base, { name: v.name, dose: +v.dose, unit: v.unit, freq: v.freq, start: v.start, end: v.end, status: v.status, course: v.course, cd: v.cd });
+      medReveal(r, [x]); md = null; App.closeModal(); App.render(); return App.snack(`${x.name} updated.`); }
+    md.rows.forEach(v => r.meds.unshift({ id: uid(), ...base, name: v.name, dose: +v.dose, unit: v.unit, freq: v.freq, start: v.start, end: v.end, status: v.status, course: v.course, cd: v.cd }));
     const names = md.rows.map(v => v.name);
+    medReveal(r, r.meds.slice(0, md.rows.length));
     md = null; App.closeModal(); App.render();
     App.snack(n === 1 ? `${names[0]} added to the medication list.${other ? '\nRecorded from another provider — nothing has been prescribed.' : ''}`
       : `${n} medications added to the list\n${names.join(' · ')}${other ? ' — recorded from another provider.' : ''}`); };
@@ -288,76 +401,142 @@
     pharmacy: ['Home delivery', 'ri-store-2-line', 'A linked pharmacy receives the prescription and delivers it.'],
     stock: ['Dispense from practice stock', 'ri-archive-2-line', 'Staff dispense from inventory for handover, delivery or post.']
   };
-  const CPUNIT = ['tablets', 'capsules', 'ml', 'mg', 'sachets', 'puffs', 'patches'];
+  const CPUNIT = App.UNITS;
   let cp = null;
   const PAYM = () => PT.payMethods('rx');
 
   /* the warning the developed app shows: this medicine has gone out before */
-  const cpIssued = (r, m) => !!m.prescribed || (r.scripts || []).some(x => x.items.some(i => i.id === m.id));
+  /* The current prescription a medicine is already on, if there is one. A past
+     course is history rather than a clash, so only a running one is returned.
+     Issuing again is allowed — it is a second, independent prescription — but
+     the person writing it is told before they sign. */
+  const cpOnRx = (r, m) => { const same = i => i.id === m.id || String(i.name).toLowerCase() === m.name.toLowerCase();
+    const e = rxList(r).find(e => e.now && (e.x.items || []).some(same)); if (!e) return null;
+    const it = e.x.items.find(same), days = rxDays(it), end = e.d && days ? new Date(e.d.getTime() + days * 864e5) : null;
+    return { no: e.x.no, issued: rxDmy(e.d), end: end ? rxDmy(end) : null }; };
+  const cpDupText = (m, d) => `${m.name} is already on ${d.no}, issued ${d.issued}${d.end ? ` and running until ${d.end}` : ' and still current'}. Issuing again creates a second, independent prescription.`;
   const cpSelIds = r => (r.f.rxSel || []).filter(id => r.meds.some(m => m.id === id));
 
   /* read the form back before any re-render, so nothing typed is lost */
   const cpRead = () => { const f = App.$('#pt-form'); if (!cp || !f) return;
     const d = Object.fromEntries(new FormData(f));
-    Object.keys(cp.sel).forEach(id => cp.sel[id] = { qty: d['q_' + id] ?? '', unit: d['u_' + id] || CPUNIT[0], dur: d['dur_' + id] ?? '', dirs: d['dir_' + id] ?? '' });
+    /* only the medicine that is open has fields on screen; the others keep what
+       was typed into them rather than being read back as empty */
+    Object.keys(cp.sel).forEach(id => { if (d['q_' + id] === undefined && d['dir_' + id] === undefined) return;
+      cp.sel[id] = { qty: d['q_' + id] ?? '', unit: d['u_' + id] || CPUNIT[0], dur: d['dur_' + id] ?? '', dirs: d['dir_' + id] ?? '' }; });
     if (d.dispatch) cp.dispatch = d.dispatch;
-    cp.feeAmt = d.feeAmt ?? cp.feeAmt; cp.reg = d.reg ?? cp.reg; cp.attest = !!d.attest;
+    cp.feeAmt = d.feeAmt ?? cp.feeAmt; cp.reg = d.reg ?? cp.reg;
+    if (App.$('#cp-attest')) cp.attest = !!d.attest;
     ['receipt', 'receivedBy', 'transferDate', 'txnRef'].forEach(k => { if (d[k] !== undefined) cp.pay[k] = d[k]; }); };
 
-  const cpStep = (n, t, hint) => `<div class="cp-step"><span class="cp-num">${n}</span><span class="cp-step-t"><b>${t}</b><small>${hint}</small></span></div>`;
-  /* the left column: what the prescription is for, at a glance */
-  const cpPick = (r, m) => { const on = !!cp.sel[m.id];
-    return `<label class="cp-pickcard ${on ? 'on' : ''}"><input type="checkbox" data-ch="cp-tick" data-id="${m.id}" ${on ? 'checked' : ''}><span class="cp-med-h"><b>${esc(m.name)} ${esc(m.dose)} ${esc(m.unit)}</b><small>${esc(m.dose)} ${esc(m.unit)} · ${esc(m.freq)}</small></span></label>`; };
-  /* the band under them: one compact line per medicine chosen */
-  const cpDose = (r, m) => { const v = cp.sel[m.id];
-    return `<div class="cp-dose">
-      <span class="cp-dose-n"><b>${esc(m.name)} ${esc(m.dose)} ${esc(m.unit)}</b>${cpIssued(r, m) ? chip('Already prescribed', 't-orange', 'ri-alert-line') : ''}</span>
-      ${F('Quantity', 'q_' + m.id, v.qty, { req: true, type: 'number' })}
-      ${S('Unit', 'u_' + m.id, CPUNIT, v.unit || CPUNIT[0], { req: true })}
-      ${F('Days', 'dur_' + m.id, v.dur, { type: 'number' })}
-      ${F('Directions', 'dir_' + m.id, v.dirs, { req: true, ph: 'e.g. Take one tablet twice daily with food' })}
+  const cpStep = (n, t, hint) => `<span class="cp-step"><span class="cp-num">${n}</span><span class="cp-step-t"><b>${t}</b><small>${hint}</small></span></span>`;
+  /* What a medicine reads as once its dosage is folded away again. */
+  const cpSum = v => [String(v.qty).trim() ? `${v.qty} ${v.unit || ''}`.trim() : '', String(v.dur).trim() ? `${v.dur} days` : '', v.dirs].filter(Boolean).join(' · ');
+  const cpDone = v => !!(String(v.qty).trim() && String(v.dirs).trim());
+  /* One medicine at a time. Picking and prescribing used to sit in two places
+     with an empty band in between; they are one job, so they are one control —
+     and only the medicine being worked on is open, so a prescription for three
+     never grows past the window. The rest read back as the line they came to. */
+  const cpMed = (r, m) => { const on = !!cp.sel[m.id], v = cp.sel[m.id] || {}, open = on && cp.open === m.id;
+    const line = !on || open ? `${esc(m.dose)} ${esc(m.unit)} · ${esc(m.freq)}` : cpDone(v) ? esc(cpSum(v)) : 'Dosage needed';
+    const dup = cpOnRx(r, m);
+    return `<div class="cp-med ${on ? 'on' : ''} ${open ? 'open' : ''} ${dup ? 'dup' : ''}">
+      <div class="cp-med-top">
+        <label class="cp-tick"><input type="checkbox" data-ch="cp-tick" data-id="${m.id}" ${on ? 'checked' : ''} aria-label="Prescribe ${esc(m.name)}"></label>
+        <button type="button" class="cp-med-b" data-act="cp-row" data-id="${m.id}" aria-expanded="${open}">
+          <b>${esc(m.name)} ${esc(m.dose)} ${esc(m.unit)}</b>
+          <small class="${on && !open && !cpDone(v) ? 'need' : ''}">${line}</small>
+        </button>
+        ${dup ? `<span class="cp-dup" title="${esc(cpDupText(m, dup))}">${chip(`On ${dup.no}`, 't-orange', 'ri-alert-line')}</span>` : ''}
+        <i class="cp-caret ${open ? 'ri-arrow-up-s-line' : 'ri-arrow-down-s-line'}"></i>
+      </div>
+      ${open ? `<div class="cp-med-d">
+        ${dup ? `<p class="cp-dup-note" role="alert"><i class="ri-alert-line"></i>${esc(cpDupText(m, dup))}</p>` : ''}
+        ${F('Quantity', 'q_' + m.id, v.qty, { req: true, type: 'number', ...cpLive })}
+        ${S('Unit', 'u_' + m.id, CPUNIT, v.unit || CPUNIT[0], { req: true })}
+        ${F('Days', 'dur_' + m.id, v.dur, { type: 'number' })}
+        ${F('Directions', 'dir_' + m.id, v.dirs, { req: true, ph: 'e.g. One tablet twice daily with food', ...cpLive })}
+      </div>` : ''}
     </div>`; };
+  /* The right column works the same way as the left: taking the payment and
+     signing for it are the last two things that happen, and only one of them is
+     open at a time, so the dialog never has to grow a scrollbar. */
+  const cpPaid = () => +cp.feeAmt > 0;
+  /* How far the prescription has got, for the rail across the top. A step is
+     only behind you once the one before it is: every medicine priced and
+     written up, then the way it reaches them settled and moved past, then
+     signed. Nothing counts itself finished early. */
+  const cpOk1 = ids => ids.length > 0 && ids.every(id => cpDone(cp.sel[id]));
+  /* Every part is on screen at once, so a step is behind you when you have
+     worked on it — on the step itself, or on one after it. Settling how the
+     medicine reaches them is a choice with an answer already in it, so it is
+     the touch that counts, not a field going from empty to full. */
+  const cpOk2 = ids => cpOk1(ids) && (cp.seen2 || cp.seen3) && (!cpPaid() || PAYM()[cp.method].need.every(k => String(cp.pay[k] || '').trim()));
+  const cpSigned = () => cp.sigMode === 'draw' ? cp.strokes.length > 0 : !!cp.sigFile;
+  const cpOk3 = ids => cpOk2(ids) && !!String(cp.reg).trim() && cp.attest && cpSigned();
+  const cpAt = ids => cpOk3(ids) ? 4 : cpOk2(ids) ? 3 : cpOk1(ids) ? 2 : 1;
+  const cpLive = { attrs: 'data-in="cp-rx-live"' };
+  const cpRail = at => `<ol class="cp-rail" aria-label="Progress">${
+    [[1, 'Medicines'], [2, 'How it reaches them'], [3, 'Sign and issue']].map(([k, t]) =>
+      `<li class="${k < at ? 'done' : k === at ? 'on' : ''}" ${k === at ? 'aria-current="step"' : ''}>
+        <span class="cp-rail-n">${k < at ? '<i class="ri-check-line"></i>' : k}</span><span class="cp-rail-t">${t}</span>
+      </li>`).join('')}</ol>`;
+
+  /* beside the title rather than in the body: it is always there, for every
+     patient, and costs the dialog no height */
+  const cpAlg = r => `<div class="cp-alg ${r.alg.length ? 'has' : ''}" role="group" aria-label="Recorded allergies">${r.alg.length
+    ? `<i class="ri-alert-line"></i><b>Allergies</b>${r.alg.map(algChip).join('')}`
+    : '<i class="ri-shield-check-line"></i><span>No known allergies recorded</span>'}</div>`;
 
   const cpModal = () => { const p = cur(), r = rec(p), me = App.me().name, org = App.biz ? App.biz().name : 'LeafEase';
-    const meds = medList(r), ids = Object.keys(cp.sel), n = ids.length, paid = +cp.feeAmt > 0;
-    const picked = meds.filter(m => cp.sel[m.id]);
-    const sum = [`${n || 'No'} medicine${n === 1 ? '' : 's'}`, CPD[cp.dispatch][0], paid ? `£${(+cp.feeAmt).toFixed(2)} · ${PAYM()[cp.method].t}` : 'No charge'].join(' · ');
+    const meds = medList(r), ids = Object.keys(cp.sel), n = ids.length, paid = cpPaid();
+    cp.drawnPaid = paid; /* what is on screen, so the fee knows when it has to redraw */
+    const dups = ids.filter(id => { const m = r.meds.find(x => x.id === id); return m && cpOnRx(r, m); }).length;
+    const sum = [`${n || 'No'} medicine${n === 1 ? '' : 's'} selected`, CPD[cp.dispatch][0], paid ? `£${(+cp.feeAmt).toFixed(2)} · ${PAYM()[cp.method].t}` : 'No charge', ...(dups ? [`${dups} already on a current prescription`] : [])].join(' · ');
     App.dialog(`<div class="cp-dlg">
       <div class="dlg-head cp-head">
         <span class="pt-dlg-ic green cp-ic"><i class="ri-quill-pen-line"></i></span>
-        <span class="cp-head-t"><h2 id="dlg-title">Create prescription</h2><small>For ${esc(PT.name(p))} · signed and issued by ${esc(me)} at ${esc(org)}</small></span>
+        <span class="cp-head-t"><h2 id="dlg-title">Create prescription</h2><small>${esc(PT.name(p))} · ${esc(me)}, ${esc(org)}</small></span>
+        ${cpAlg(r)}
         <button class="icon-btn s20 cp-x" data-act="close-modal" aria-label="Close"><i class="ri-close-line"></i></button>
       </div>
+      ${cpRail(cpAt(ids))}
       <form class="dlg-body" id="pt-form" onsubmit="return false">
         <div class="cp-grid">
-          <section class="cp-col">
-            ${cpStep(1, 'Medications', 'Select what this prescription is for.')}
-            <div class="cp-list">${meds.length ? meds.map(m => cpPick(r, m)).join('') : '<p class="caption">No medications on this list to prescribe.</p>'}</div>
+          <section class="cp-card">
+            <div class="cp-card-h">
+              ${cpStep(1, 'Medicines', 'Pick one or more medicines, set the dosage and directions.')}
+              <button type="button" class="btn outlined sm cp-addmed" data-act="cp-add-med"><i class="ri-add-line"></i>Add medicine</button>
+            </div>
+            <div class="cp-list" ${cp.listH ? `style="height:${cp.listH}px"` : ''}>${meds.length ? meds.map(m => cpMed(r, m)).join('') : '<p class="caption">No medications on this list to prescribe. Add one to get started.</p>'}${
+              /* a short list would leave the card half empty beside the step next
+                 to it, and a patient on one medicine is exactly when reaching for
+                 another is likely: the room goes to the way of adding one */
+              meds.length < 3 ? '<button type="button" class="cp-addtile" data-act="cp-add-med"><i class="ri-add-line"></i>Add another medicine</button>' : ''}</div>
           </section>
-          <section class="cp-col">
-            ${cpStep(2, 'Dispatch', 'Choose how the patient receives their medicine.')}
+          <section class="cp-card cp-reach">
+            <div class="cp-card-h">${cpStep(2, 'How it reaches them', 'And what, if anything, is charged.')}</div>
             <div class="cp-opts">${Object.entries(CPD).map(([k, [t, i, d]]) => `<label class="cp-opt ${k === cp.dispatch ? 'on' : ''}"><input type="radio" name="dispatch" value="${k}" data-ch="cp-dispatch" ${k === cp.dispatch ? 'checked' : ''}><span class="cp-opt-ic"><i class="${i}"></i></span><span class="cp-opt-t"><b>${t}</b><small>${d}</small></span></label>`).join('')}</div>
-            ${F('Prescription fee (£)', 'feeAmt', cp.feeAmt, { req: true, type: 'number', step: '0.01', ph: '0.00', attrs: 'data-in="cp-amt" data-ch="cp-feeamt"' })}
-            <span class="caption cp-hint">Charge applied for this prescription (e.g. NHS, private or practice fee). Leave at 0 for no charge.</span>
+            <div class="cp-fee">
+              <span class="cp-fee-t"><b>Prescription fee</b><small>Leave at 0 for no charge.</small></span>
+              ${App.field('', `<span class="adorn">£</span><input id="ft-feeAmt" name="feeAmt" type="number" step="0.01" value="${esc(cp.feeAmt)}" placeholder="0.00" data-in="cp-amt" data-ch="cp-feeamt" aria-label="Prescription fee in pounds">`, { cls: 'cp-fee-f' })}
+            </div>
             ${paid ? `<div class="cp-paybox">${PT.payTabs(PAYM(), cp.method, 'cp-pay-m')}${PAYM()[cp.method].body({ ...cp.pay, price: +cp.feeAmt || 0 })}</div>` : ''}
-            <div class="cp-count"><i class="ri-capsule-line"></i>Selected medicines: <b>${n}</b></div>
           </section>
-        </div>
-        <section class="cp-band">
-          ${cpStep(3, 'Dosage &amp; directions', 'How each medicine chosen above is to be taken.')}
-          ${n ? `<div class="cp-doses">${picked.map(m => cpDose(r, m)).join('')}</div>` : '<p class="caption cp-empty">Tick a medicine on the left and its dosage appears here.</p>'}
-        </section>
-        <div class="cp-grid">
-          <section class="cp-col">
-            ${cpStep(4, 'Sign', 'The prescriber named here, and this signature, go on the prescription.')}
-            <div class="g2">${`<div class="ft"><label>Prescriber</label>${App.field('', `<input value="${esc(me)}" readonly tabindex="-1">`, { cls: 'dis' })}</div>`}${F('Registration number (e.g. GMC)', 'reg', cp.reg, { req: true })}</div>
-            <label class="cbx cp-attest" id="cp-attest"><input type="checkbox" name="attest" ${cp.attest ? 'checked' : ''}><span>I confirm that I am a registered healthcare professional, that I have assessed this patient, and that I am authorised to prescribe the medicines listed above. The details above are correct, and the signature below is mine.</span></label>
-          </section>
-          <section class="cp-col">
-            <div class="cp-sig-h"><b class="cp-siglab">Signature</b><div class="pt-seg cp-sigseg" role="tablist" aria-label="Signature">${[['draw', 'Draw'], ['upload', 'Upload image']].map(([k, t]) => `<button type="button" role="tab" aria-selected="${k === cp.sigMode}" class="${k === cp.sigMode ? 'on' : ''}" data-act="cp-sigmode" data-v="${k}">${t}</button>`).join('')}</div></div>
-            <div id="cp-sigwrap">${cp.sigMode === 'draw'
-              ? `<div class="cp-sig ${cp.strokes.length ? 'has' : ''}"><canvas id="cp-sig"></canvas><span class="caption cp-sig-hint" id="cp-sig-hint" ${cp.strokes.length ? 'hidden' : ''}>Sign here with the mouse or a finger</span><button type="button" class="btn text sm cp-sig-clear" data-act="cp-sigclear"><i class="ri-eraser-line"></i>Clear</button></div>`
-              : `<label class="dropzone pt-drop ${cp.sigFile ? 'has' : ''}" id="cp-drop"><input type="file" accept=".jpg,.jpeg,.png" hidden data-ch="cp-sigfile"><i class="ri-upload-cloud-2-line"></i><b>${cp.sigFile ? esc(cp.sigFile) : 'Upload a signature image'}</b><span class="caption">JPEG or PNG</span><span class="btn outlined sm pt-dark">Browse File</span></label>`}</div>
+          <section class="cp-card cp-sign">
+            <div class="cp-card-h">${cpStep(3, 'Sign and issue', `Signed by ${esc(me)}.`)}</div>
+            <div class="cp-sign-b">
+              <div class="cp-sign-id">
+                ${F('Registration number (e.g. GMC)', 'reg', cp.reg, { req: true, attrs: 'data-in="cp-step3"' })}
+                <label class="cbx cp-attest" id="cp-attest"><input type="checkbox" name="attest" data-ch="cp-step3" ${cp.attest ? 'checked' : ''}><span>I am registered and authorised to prescribe, I have assessed this patient, and this signature is mine.</span></label>
+              </div>
+              <div class="cp-sign-pad">
+                <div class="cp-sigmode"><label>Signature</label><div class="pt-seg cp-sigseg" role="tablist" aria-label="Signature">${[['draw', 'Draw', 'ri-quill-pen-line'], ['upload', 'Upload image', 'ri-upload-2-line']].map(([k, t, i]) => `<button type="button" role="tab" aria-selected="${k === cp.sigMode}" class="${k === cp.sigMode ? 'on' : ''}" data-act="cp-sigmode" data-v="${k}"><i class="${i}"></i>${t}</button>`).join('')}</div></div>
+                <div id="cp-sigwrap">${cp.sigMode === 'draw'
+                  ? `<div class="cp-sig ${cp.strokes.length ? 'has' : ''}"><canvas id="cp-sig"></canvas><span class="caption cp-sig-hint" id="cp-sig-hint" ${cp.strokes.length ? 'hidden' : ''}>Sign here with the mouse or a finger</span><button type="button" class="btn text sm cp-sig-clear" data-act="cp-sigclear"><i class="ri-delete-bin-line"></i>Clear</button></div>`
+                  : `<label class="dropzone pt-drop ${cp.sigFile ? 'has' : ''}" id="cp-drop"><input type="file" accept=".jpg,.jpeg,.png" hidden data-ch="cp-sigfile"><i class="ri-upload-cloud-2-line"></i><b>${cp.sigFile ? esc(cp.sigFile) : 'Upload a signature image'}</b><span class="caption">JPEG or PNG</span><span class="btn outlined sm pt-dark">Browse File</span></label>`}</div>
+              </div>
+            </div>
           </section>
         </div>
       </form>
@@ -366,11 +545,24 @@
         <button class="btn outlined lg" data-act="close-modal">Cancel</button>
         <button class="btn primary lg" data-act="cp-go"><i class="ri-quill-pen-line"></i>Sign and issue</button>
       </div>
-    </div>`, { width: 1060, locked: true });
+    </div>`, { width: 1200, locked: true });
     cpWire(); };
 
   /* the canvas is redrawn from the strokes we keep, so a re-render never wipes it */
-  const cpWire = () => { const c = App.$('#cp-sig'); if (!c) return;
+  const cpWire = () => {
+    /* Every field in the dialog feeds the rail, the payment details included,
+       so the form is watched as a whole rather than field by field. The form is
+       built fresh on each render, so this listener goes with it. */
+    const f = App.$('#pt-form');
+    if (f) ['input', 'change'].forEach(k => f.addEventListener(k, () => { cpRead(); cpRailSync(); }));
+    /* Measured while nothing is open — that is the height the dialog is built
+       around. With a medicine open the stored height holds and the list scrolls,
+       so the dialog keeps the shape it had before you touched it. */
+    const L = App.$('.cp-list');
+    if (L && !cp.open) { L.style.height = 'auto';
+      cp.listH = Math.min(L.scrollHeight, Math.round(innerHeight * 0.44), 430);
+      L.style.height = cp.listH + 'px'; }
+    const c = App.$('#cp-sig'); if (!c) return;
     const box = c.parentElement, ctx = c.getContext('2d'), dpr = window.devicePixelRatio || 1;
     const w = box.clientWidth, h = box.clientHeight;
     c.width = w * dpr; c.height = h * dpr; c.style.width = w + 'px'; c.style.height = h + 'px';
@@ -381,37 +573,109 @@
     let st = null;
     c.addEventListener('pointerdown', e => { e.preventDefault(); try { c.setPointerCapture(e.pointerId); } catch (_) { /* a pointer the browser no longer tracks */ } st = [at(e)]; cp.strokes.push(st); box.classList.add('has'); App.$('#cp-sig-hint').hidden = true; redraw(); });
     c.addEventListener('pointermove', e => { if (!st) return; st.push(at(e)); redraw(); });
-    ['pointerup', 'pointercancel'].forEach(k => c.addEventListener(k, () => { st = null; })); };
+    ['pointerup', 'pointercancel'].forEach(k => c.addEventListener(k, () => { if (st) { cp.seen3 = true; cpRailSync(); } st = null; })); };
 
-  acts['cp-open'] = () => { const r = rec(cur()), picked = cpSelIds(r);
-    cp = { sel: {}, dispatch: 'give', feeAmt: '', method: 'link', pay: {}, reg: '', attest: false, sigMode: 'draw', strokes: [], sigFile: '' };
-    picked.forEach(id => { const m = r.meds.find(x => x.id === id); cp.sel[id] = { qty: '', unit: CPUNIT[0], dur: '', dirs: '' }; });
+  acts['cp-open'] = () => { if (!mayRx()) return rxDeny(); const r = rec(cur()), picked = cpSelIds(r);
+    cp = { sel: {}, open: null, listH: 0, seen2: false, seen3: false, dispatch: 'give', feeAmt: '', method: 'link', pay: {}, reg: '', attest: false, sigMode: 'draw', strokes: [], sigFile: '' };
+    picked.forEach(id => { cp.sel[id] = { qty: '', unit: CPUNIT[0], dur: '', dirs: '' }; });
+    cp.open = picked[0] || null;
     cpModal(); };
+  const cpAdd = id => cp.sel[id] = cp.sel[id] || { qty: '', unit: CPUNIT[0], dur: '', dirs: '' };
+  /* nothing chosen means nothing to pay for or sign; the first medicine opens
+     whichever of the two comes next */
+  /* nothing chosen means nothing to pay for or sign, and the prescription is
+     back at step one; a fee opens the payment it belongs to, but signing is
+     never opened for the clinician — stepping into it is what closes step 2 */
+  const cpSettle = () => { if (!Object.keys(cp.sel).length) cp.seen2 = cp.seen3 = false; };
   chs['cp-tick'] = el => { cpRead(); const id = el.dataset.id;
-    if (el.checked) cp.sel[id] = cp.sel[id] || { qty: '', unit: CPUNIT[0], dur: '', dirs: '' }; else delete cp.sel[id];
+    if (el.checked) { cpAdd(id); cp.open = id; } else { delete cp.sel[id]; if (cp.open === id) cp.open = Object.keys(cp.sel)[0] || null; }
+    cpSettle(); cpModal(); };
+  /* the row itself: take the medicine on if it is off, otherwise fold its dosage away or back */
+  acts['cp-row'] = el => { cpRead(); const id = el.dataset.id;
+    if (!cp.sel[id]) { cpAdd(id); cp.open = id; } else cp.open = cp.open === id ? null : id;
+    cpSettle(); cpModal(); };
+
+  chs['cp-dispatch'] = el => { cpRead(); cp.dispatch = el.value; cp.seen2 = true; cpModal(); };
+  /* crossing zero brings the payment step in or takes it away, so the fee
+     settles on change rather than on every keystroke; it compares against what
+     was drawn, not against cp, which the form's own listener has already read */
+  chs['cp-feeamt'] = () => { cpRead(); cp.seen2 = true;
+    if (cp.drawnPaid === cpPaid()) { cpRailSync(); return; }
     cpModal(); };
-  chs['cp-dispatch'] = el => { cpRead(); cp.dispatch = el.value; cpModal(); };
-  /* crossing zero brings the payment step in or takes it away, so the fee settles on change rather than on every keystroke */
-  chs['cp-feeamt'] = el => { const was = +cp.feeAmt > 0; cpRead(); if (was !== (+el.value > 0)) cpModal(); };
-  acts['cp-pay-m'] = el => { cpRead(); cp.method = el.dataset.v; cpModal(); };
+  acts['cp-pay-m'] = el => { cpRead(); cp.method = el.dataset.v; cp.seen2 = true; cpModal(); };
   /* the locked Amount Received follows the fee as it is typed, so the two never disagree */
   ins['cp-amt'] = el => { const a = App.$('#pt-form .rx-paybox input[readonly]'); if (a) a.value = '£' + (+el.value || 0).toFixed(2); };
+  /* the rail reads where the prescription has got to, so it has to follow the
+     typing rather than wait for the next re-render; swapping the one list keeps
+     the field being typed in untouched */
+  /* The rail and the step it unlocks both read where the prescription has got
+     to, so they have to follow the typing rather than wait for the next
+     re-render. Swapping these two in place leaves the field being typed in
+     exactly as it was. */
+  const cpRailSync = () => { if (!cp) return; const el = App.$('.cp-rail');
+    if (el) el.outerHTML = cpRail(cpAt(Object.keys(cp.sel))); };
+  ins['cp-rx-live'] = () => { cpRead(); cpRailSync(); };
+  /* typing a registration number, ticking the declaration or signing all mean
+     the prescription has moved on to its last step */
+  ins['cp-step3'] = () => { cpRead(); cp.seen3 = true; cpRailSync(); };
+  chs['cp-step3'] = ins['cp-step3'];
   /* the pill on a row: the same dialog, opened with just that medicine ticked */
-  acts['cp-one'] = el => { rec(cur()).f.rxSel = [el.dataset.id]; App.render(); acts['cp-open'](); };
-  acts['cp-sigmode'] = el => { cpRead(); cp.sigMode = el.dataset.v; cpModal(); };
+  /* Add medicine, from inside the prescription. The app shows one dialog at a
+     time, so the prescription is held in memory while the medicine is recorded,
+     and comes back with the new one ticked and open — including when the
+     medicine dialog is cancelled, which would otherwise throw the work away. */
+  /* What is held is the medicine dialog's own backdrop, not a yes/no: if that
+     exact dialog is no longer the one on screen — closed, replaced, navigated
+     away from — nothing is pending, whatever happened to it. */
+  let cpPend = null;
+  const cpPending = () => !!(cp && cpPend && cpPend.isConnected && cpPend === App.$('.scrim'));
+  acts['cp-add-med'] = () => { cpRead(); mdOpen(null); cpPend = App.$('.scrim'); };
+  const medSave = acts['med-save'];
+  acts['med-save'] = (el, e) => { if (!cpPending()) { cpPend = null; return medSave(el, e); }
+    const before = rec(cur()).meds.map(m => m.id);
+    medSave(el, e);
+    if (App.$('.scrim')) return; /* it did not save: the form is still up, with its fields marked */
+    cpPend = null;
+    const fresh = rec(cur()).meds.filter(m => !before.includes(m.id));
+    fresh.forEach(m => cpAdd(m.id));
+    if (fresh.length) cp.open = fresh[0].id;
+    cpSettle(); cpModal();
+    if (fresh.length) App.$('#pt-form .cp-med.open [name^="q_"]')?.focus(); };
+  const cpCloseAct = acts['close-modal'];
+  acts['close-modal'] = (el, e) => { const resume = cpPending(); cpPend = null;
+    if (resume) { cpModal(); return; } return cpCloseAct(el, e); };
+
+  acts['cp-one'] = el => { if (!mayRx()) return rxDeny(); rec(cur()).f.rxSel = [el.dataset.id]; App.render(); acts['cp-open'](); };
+  acts['cp-sigmode'] = el => { cpRead(); cp.sigMode = el.dataset.v; cp.seen3 = true; cpModal(); };
   acts['cp-sigclear'] = () => { cpRead(); cp.strokes = []; cpModal(); };
   chs['cp-sigfile'] = el => { const f = el.files[0]; if (!f) return;
     if (f.size > 5 * 1024 * 1024) return App.snack('That file is over 5 MB. Choose a smaller image.', 'error');
-    cpRead(); cp.sigFile = f.name; cpModal(); };
+    cpRead(); cp.sigFile = f.name; cp.seen3 = true; cpModal(); };
 
-  acts['cp-go'] = () => { cpRead(); const r = rec(cur()), ids = Object.keys(cp.sel);
-    if (!ids.length) return App.snack('Tick at least one medication to prescribe.', 'error');
-    const need = [];
-    ids.forEach(id => { const v = cp.sel[id]; if (!String(v.qty).trim()) need.push('q_' + id); if (!String(v.dirs).trim()) need.push('dir_' + id); });
-    if (+cp.feeAmt > 0) PAYM()[cp.method].need.forEach(k => { if (!String(cp.pay[k] || '').trim()) need.push(k); });
-    if (!String(cp.reg).trim()) need.push('reg');
-    App.$$('#pt-form .field').forEach(f => { const n = f.querySelector('[name]')?.name; f.classList.toggle('err', need.includes(n)); });
-    if (need.length) { App.$(`#pt-form [name="${need[0]}"]`)?.focus(); return App.snack('Fill in the fields marked in red before signing.', 'error'); }
+  acts['cp-go'] = () => { if (!mayRx()) return rxDeny(); cpRead(); const r = rec(cur()), ids = Object.keys(cp.sel);
+    if (!ids.length) return App.snack('Pick at least one medicine to prescribe.', 'error');
+    /* Only one part of the prescription is on screen at a time, so the check
+       reads what was typed rather than what happens to be showing, and opens
+       the first part that is short of something: the medicines, then the
+       payment, then the signature. */
+    /* red on its own is not an error message, so the field says so too */
+    const mark = need => { App.$$('#pt-form .field').forEach(f => { const el = f.querySelector('[name]'), bad = need.includes(el && el.name);
+        f.classList.toggle('err', bad); if (el) bad ? el.setAttribute('aria-invalid', 'true') : el.removeAttribute('aria-invalid'); });
+      App.$(`#pt-form [name="${need[0]}"]`)?.focus();
+      App.snack('Fill in the fields marked in red before signing.', 'error'); };
+
+    const short = ids.find(id => !cpDone(cp.sel[id]));
+    if (short) { cp.open = short; cpModal();
+      const v = cp.sel[short], need = [];
+      if (!String(v.qty).trim()) need.push('q_' + short);
+      if (!String(v.dirs).trim()) need.push('dir_' + short);
+      return mark(need); }
+
+    if (cpPaid()) { const miss = PAYM()[cp.method].need.filter(k => !String(cp.pay[k] || '').trim());
+      if (miss.length) return mark(miss); }
+
+    if (!String(cp.reg).trim()) return mark(['reg']);
+    App.$$('#pt-form .field').forEach(f => { f.classList.remove('err'); f.querySelector('[name]')?.removeAttribute('aria-invalid'); });
     const at = App.$('#cp-attest'); at.classList.toggle('err', !cp.attest);
     if (!cp.attest) return App.snack('Confirm the declaration before signing.', 'error');
     const signed = cp.sigMode === 'draw' ? cp.strokes.length > 0 : !!cp.sigFile;
@@ -424,7 +688,7 @@
     const no = 'RX-' + String(1000 + ((r.scripts || []).length + 1)).slice(-4);
     const items = ids.map(id => { const m = r.meds.find(x => x.id === id), v = cp.sel[id];
       return { id, name: m.name, dose: m.dose, unit: m.unit, qty: +v.qty, qtyUnit: v.unit, dur: v.dur, dirs: v.dirs }; });
-    (r.scripts = r.scripts || []).unshift({ no, at: issued, by: me, org, reg: cp.reg, dispatch: cp.dispatch,
+    (r.scripts = r.scripts || []).unshift({ no, at: issued, issuedAt: new Date().toISOString(), by: me, org, reg: cp.reg, dispatch: cp.dispatch,
       fee: paid ? 'Paid prescription' : 'Free prescription', feeAmt: paid ? +cp.feeAmt : 0, pay: paid ? P.t : '', payStatus: paid ? P.status : '', ...(paid ? cp.pay : {}),
       sig: cp.sigMode === 'draw' ? 'Drawn' : cp.sigFile, items });
     items.forEach(it => { const m = r.meds.find(x => x.id === it.id);
@@ -439,8 +703,11 @@
   chs['cp-pick'] = el => { const r = rec(cur()), set = new Set(r.f.rxSel || []);
     el.checked ? set.add(el.dataset.id) : set.delete(el.dataset.id);
     r.f.rxSel = [...set]; App.render(); };
-  chs['cp-all'] = el => { const r = rec(cur());
-    r.f.rxSel = el.checked ? r.meds.map(m => m.id) : []; App.render(); };
+  /* the tick at the head of the table covers the rows under it, not the rows on
+     the other two tabs — those keep whatever was already chosen for them */
+  chs['cp-all'] = el => { const r = rec(cur()), set = new Set(cpSelIds(r));
+    medShown(r).forEach(m => el.checked ? set.add(m.id) : set.delete(m.id));
+    r.f.rxSel = [...set]; App.render(); };
 
   /* ---------- Documents ---------- */
   const CATS = ['Blood Reports', 'Documents', 'Review Forms', 'Questionnaires', 'Consent Forms'];
