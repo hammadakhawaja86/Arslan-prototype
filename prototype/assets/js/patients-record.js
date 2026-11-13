@@ -215,7 +215,7 @@
      Create prescription writes and the dispensing queue reads. Until now a
      prescription only showed as chips on the medicine it was for; here each one
      is a row of its own, with all of its medicines on it. */
-  const rxScripts = r => { App.IV?.seedRx?.(); return r.scripts || []; };
+  const rxScripts = r => { App.IV?.sync?.(); return r.scripts || []; };
   const rxDate = x => { const d = new Date(x.issuedAt || x.at); return isNaN(d) ? null : d; };
   const rxDays = it => parseInt(it.dur, 10) || 0;
   /* Current while the course written on it is still running; with no length on
@@ -226,41 +226,177 @@
     if (!open.length) return !!d && Date.now() < d.getTime() + Math.max(...items.map(rxDays), 0) * 864e5;
     return open.some(it => { const m = r.meds.find(m => m.id === it.id) || r.meds.find(m => m.name.toLowerCase() === String(it.name).toLowerCase());
       return !m || m.status === 'Active'; }); };
-  const rxList = r => rxScripts(r).map(x => ({ x, now: rxCurrent(r, x), d: rxDate(x) }))
+  const rxList = r => rxScripts(r).map(x => ({ x, now: rxStat(x) !== 'Cancelled' && rxCurrent(r, x), d: rxDate(x) }))
     .sort((a, b) => (b.now - a.now) || ((b.d || 0) - (a.d || 0)));
   const rxDmy = d => d ? d.toLocaleDateString('en-GB') : '—';
   const rxQty = it => [`${it.qty} ${it.qtyUnit || ''}`.trim(), rxDays(it) ? `${rxDays(it)} days` : ''].filter(Boolean).join(' · ');
-  const rxFee = x => x.fee === 'Paid prescription'
-    ? `<span class="cell2"><b class="fw5">£${Number(x.feeAmt || 0).toFixed(2)}</b><small>${esc(x.pay || '')}</small></span>${chip(x.payStatus || 'Awaiting Payment', x.payStatus === 'Paid' ? 't-green' : 't-orange', x.payStatus === 'Paid' ? 'ri-checkbox-circle-line' : 'ri-time-line')}`
-    : chip('Free', 't-grey', 'ri-price-tag-3-line');
   const rxState = now => now ? chip('Current', 't-green', 'ri-checkbox-circle-line') : chip('Completed', 't-grey', 'ri-history-line');
 
-  const rxBox = r => { const L = rxList(r);
+  /* ---------- A prescription's life ----------
+     Issued, then maybe cancelled. Where it has got to with whoever dispenses it,
+     and what has been paid for it, are read from the places that own them — the
+     dispensing queue for stock, the pharmacy's answer for a pharmacy, the invoice
+     in Billing for money — so this screen never holds a second, stale copy. */
+  const rxStat = x => x.status || 'Issued';
+  const rxFind = (p, no) => (rec(p).scripts || []).find(x => x.no === no);
+  const rxHref = (p, x) => `#/patients/${p.id}/prescriptions/${x.no}`;
+  const rxDT = d => d ? d.toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—';
+  const rxLog = x => x.log || (x.log = [['Prescription issued and signed', (rxDate(x) || new Date()).toISOString(), x.by || '']]);
+  const rxNote = (x, text, by) => rxLog(x).push([text, new Date().toISOString(), by === undefined ? App.me().name : by]);
+  const rxIV = (p, x) => x.dispatch === 'stock' && App.IV && App.IV.D ? (App.IV.D.rx || []).find(r => r.src === p.id + '|' + x.no) : null;
+  /* [label, tone, icon, has the dispenser taken it on?] */
+  const IVST = { 'To dispense': ['Awaiting dispensing', 't-orange', 'ri-time-line', false], 'In progress': ['In progress', 't-blue', 'ri-loader-4-line', true], Completed: ['Dispensed', 't-green', 'ri-checkbox-circle-line', true], Cancelled: ['Cancelled', 't-grey', 'ri-forbid-line', false] };
+  const rxFul = (p, x) => { if (!x.dispatch || x.dispatch === 'give') return null;
+    if (rxStat(x) === 'Cancelled') return { t: 'Cancelled', tone: 't-grey', i: 'ri-forbid-line', accepted: false, who: x.dispatch === 'stock' ? 'Practice dispensary' : (x.pharmacy || 'Linked pharmacy') };
+    if (x.dispatch === 'stock') { const row = rxIV(p, x), st = IVST[row ? row.status : 'To dispense'] || IVST['To dispense'];
+      return { t: st[0], tone: st[1], i: st[2], accepted: st[3], who: 'Practice dispensary', row }; }
+    const f = x.ful || { status: 'Sent' }, sent = f.status === 'Sent';
+    return { t: f.status, tone: sent ? 't-blue' : 't-green', i: sent ? 'ri-send-plane-line' : 'ri-checkbox-circle-line', accepted: !sent, who: x.pharmacy || 'Linked pharmacy' }; };
+
+  /* the prescription's charge, as an invoice in Billing */
+  const rxInv = (p, x) => (App.S.inv2 || []).find(v => v.rx === x.no && v.pid === p.id);
+  const rxEnsureInv = (p, x) => { const S = App.S; if (!S.inv2 || x.fee !== 'Paid prescription' || !(+x.feeAmt > 0)) return rxInv(p, x);
+    let v = rxInv(p, x);
+    if (!v) { const at = rxDate(x) || new Date(), paid = x.payStatus === 'Paid'; let n = 6000 + S.inv2.length; while (S.inv2.some(i => i.id === 'HC-' + n)) n++;
+      v = { id: 'HC-' + n, pid: p.id, svc: `Prescription ${x.no}`, kind: 'Service', amt: +x.feeAmt, status: paid ? 'Payment Complete' : 'Awaiting Payment', issued: at, appt: at, ref: x.no, rx: x.no,
+        clin: x.by || '', method: x.pay || 'Card', pays: paid ? [{ amt: +x.feeAmt, method: x.pay || 'Card', at }] : [],
+        log: [[paid ? `Payment recorded via ${String(x.pay || 'card').toLowerCase()}` : 'Charge raised — awaiting payment', at, x.by || '']] };
+      S.inv2.unshift(v); rxNote(x, `Charge ${v.id} raised in Billing${paid ? ' and paid' : ' — awaiting payment'}`, ''); }
+    /* the invoice is where money moves, so the prescription follows it */
+    if (v.status === 'Payment Complete') x.payStatus = 'Paid'; else if (v.status === 'Awaiting Payment') x.payStatus = 'Awaiting Payment';
+    return v; };
+  const rxSync = p => { App.IV?.sync?.(); (rec(p).scripts || []).forEach(x => rxEnsureInv(p, x)); };
+  const PAYV = { 'Payment Complete': ['Paid', 't-green', 'ri-checkbox-circle-line'], 'Awaiting Payment': ['Awaiting payment', 't-orange', 'ri-time-line'], 'Payment Failed': ['Payment failed', 't-red', 'ri-close-circle-line'],
+    'Part Paid': ['Part paid', 't-blue', 'ri-pie-chart-2-line'], 'Refund applicable': ['Refund applicable', 't-purple', 'ri-refund-2-line'] };
+  const rxPayOf = (p, x) => { if (x.fee !== 'Paid prescription') return { t: 'Free', tone: 't-grey', i: 'ri-price-tag-3-line', sub: '', inv: null };
+    const v = rxInv(p, x), st = v ? v.status : x.payStatus === 'Paid' ? 'Payment Complete' : 'Awaiting Payment', money = `£${Number(x.feeAmt || 0).toFixed(2)} · ${x.pay || ''}`;
+    const m = st === 'Cancelled' ? (v && v.pays.length ? ['Refund initiated', 't-purple', 'ri-refund-2-line'] : ['Charge cancelled', 't-grey', 'ri-forbid-line']) : (PAYV[st] || [st, 't-grey', '']);
+    return { t: m[0], tone: m[1], i: m[2], sub: money, inv: v }; };
+  const rxStatChip = x => rxStat(x) === 'Cancelled' ? chip('Cancelled', 't-red', 'ri-close-circle-line')
+    : x.recall && x.recall.status === 'Pending' ? chip('Recall pending', 't-orange', 'ri-arrow-go-back-line') : chip('Issued', 't-blue', 'ri-file-list-3-line');
+  /* with nobody having taken it on, it is simply cancelled; once they have, they
+     are asked to give it back and it waits on their answer */
+  const rxCancelKind = (p, x) => { const f = rxFul(p, x); return f && f.accepted ? 'recall' : 'now'; };
+  const rxCanCancel = (p, x) => App.can('Prescriptions', 'Cancel') && rxStat(x) === 'Issued' && !x.recall;
+
+  /* a paid charge becomes refundable — nothing is returned by itself — and an
+     unpaid one is simply cancelled */
+  const rxFinishCancel = (p, x, why, by) => {
+    x.status = 'Cancelled'; x.cancel = { reason: why, by, at: new Date().toISOString() };
+    const row = rxIV(p, x); if (row && row.status !== 'Completed') { row.status = 'Cancelled'; App.IV.save && App.IV.save(); }
+    const v = rxInv(p, x); let k = '';
+    if (v && v.status !== 'Cancelled') {
+      if (v.pays.reduce((n, q) => n + q.amt, 0) > 0) { v.status = 'Refund applicable'; k = 'refund'; v.log.push([`Prescription ${x.no} cancelled — refund applicable`, new Date(), by]); }
+      else { v.status = 'Cancelled'; v.cancelled = new Date(); v.why = `Prescription ${x.no} cancelled · ${why}`; k = 'charge'; v.log.push([`Prescription ${x.no} cancelled — charge cancelled`, new Date(), by]); } }
+    rxNote(x, `Prescription cancelled — ${why}`, by);
+    if (k) rxNote(x, k === 'refund' ? `Charge ${v.id} marked Refund applicable in Billing` : `Charge ${v.id} cancelled in Billing`, '');
+    return k; };
+
+  /* ---------- the Prescriptions tab ---------- */
+  const rxBox = (p, r) => { const L = rxList(r);
     return box('ri-file-list-3-line', `Prescriptions (${L.filter(e => e.now).length} Current)`,
       mayRx() ? `<button class="btn outlined" data-act="cp-open"><i class="ri-quill-pen-line"></i>Create prescription</button>` : '',
-      `<div class="mh-rx">${table(['Prescription', 'Medicines', 'Prescriber', 'How it reaches them', 'Fee', 'Action'], L.map(({ x, now, d }) => { const D = CPD[x.dispatch];
-        return `<tr><td><span class="cell2 mh-rx-no"><b class="fw5">${esc(x.no)}</b><small>Issued ${rxDmy(d)}</small>${rxState(now)}</span></td>
+      `<div class="mh-rx">${table(['Prescription', 'Medicines', 'Prescriber', 'How it reaches them', 'Status', 'Fulfilment', 'Payment', 'Action'], L.map(({ x, now, d }) => { const D = CPD[x.dispatch], f = rxFul(p, x), py = rxPayOf(p, x), cancelled = rxStat(x) === 'Cancelled';
+        return `<tr class="click" data-go="${rxHref(p, x)}">
+          <td><span class="cell2"><b class="fw5">${esc(x.no)}</b><small>Issued ${rxDmy(d)}</small></span></td>
           <td><span class="mh-rx-items">${(x.items || []).map(it => `<span class="cell2"><b class="fw5">${esc(it.name)} ${esc(it.dose)} ${esc(it.unit)}</b><small>${esc(rxQty(it))}</small></span>`).join('')}</span></td>
           <td><span class="cell2"><b class="fw5">${esc(x.by || '—')}</b><small>${esc(x.reg || '')}</small></span></td>
           <td>${D ? chip(D[0], 't-blue', D[1]) : '—'}</td>
-          <td><span class="mh-rx-fee">${rxFee(x)}</span></td>
-          <td><span class="row-actions"><button class="icon-btn s20" data-act="rx-view" data-id="${esc(x.no)}" aria-label="View prescription ${esc(x.no)}" title="View"><i class="ri-eye-line"></i></button></span></td></tr>`; }), 6, 'No prescriptions have been written for this patient yet.')}</div>`); };
+          <td><span class="mh-rx-st">${rxStatChip(x)}${cancelled ? '' : rxState(now)}</span></td>
+          <td>${f ? `<span class="mh-rx-st">${chip(f.t, f.tone, f.i)}<small class="caption">${esc(f.who)}</small></span>` : '<span class="caption">None needed</span>'}</td>
+          <td><span class="mh-rx-st">${chip(py.t, py.tone, py.i)}${py.sub ? `<small class="caption">${esc(py.sub)}</small>` : ''}</span></td>
+          <td><span class="row-actions"><a class="icon-btn s20" href="${rxHref(p, x)}" aria-label="Open prescription ${esc(x.no)}" title="Open"><i class="ri-eye-line"></i></a></span></td></tr>`; }), 8, 'No prescriptions have been written for this patient yet.')}</div>`); };
 
-  /* the whole prescription, as it was signed: directions are too long for a row */
-  acts['rx-view'] = el => { if (!mayRxList()) return; const r = rec(cur()), e = rxList(r).find(e => e.x.no === el.dataset.id); if (!e) return; const { x, now, d } = e, D = CPD[x.dispatch];
-    App.dialog(modal('ri-file-list-3-line', esc(x.no), `Issued ${rxDmy(d)} by ${esc(x.by || '—')}${x.org ? ', ' + esc(x.org) : ''}`,
-      `<div class="row g8 wrap">${rxState(now)}${D ? chip(D[0], 't-blue', D[1]) : ''}</div>
-      <b class="sub2">Medicines</b>
-      <div class="mh-rx-view">${(x.items || []).map(it => `<div class="mh-rx-it"><b class="fw5">${esc(it.name)} ${esc(it.dose)} ${esc(it.unit)}</b><small>${esc(rxQty(it))}</small>${it.dirs ? `<p>${esc(it.dirs)}</p>` : ''}</div>`).join('')}</div>
-      <b class="sub2">Signed</b>${kv([['Prescriber', esc(x.by || '—')], ['Registration', esc(x.reg || '—')], ['Organisation', esc(x.org || '—')], ['Signature', x.sig === 'Drawn' ? 'Drawn by hand' : x.sig ? esc(x.sig) : '—']])}
-      <b class="sub2">Fee</b>${kv(x.fee === 'Paid prescription' ? [['Amount', `£${Number(x.feeAmt || 0).toFixed(2)}`], ['Method', esc(x.pay || '—')], ['Status', esc(x.payStatus || '—')]] : [['Amount', 'Free prescription']])}`,
-      `<button class="btn outlined lg" data-act="close-modal">Close</button>`, 'green', 'md-dlg'), { width: 560 }); };
+  /* ---------- the prescription's own page ---------- */
+  const rxMeta = { key: 'patients', icon: 'ri-user-line', title: 'Patients' };
+  const rxGone = '<section class="soon"><h1 class="soon-h1">Prescription not found</h1><a class="btn outlined" href="#/patients">Back to Patients</a></section>';
+  /* the pharmacy portal is not built, so what the dispenser would do is done from
+     here, plainly marked as a stand-in */
+  const rxDemo = (p, x, f) => { const rec2 = x.recall && x.recall.status === 'Pending';
+    const b = (v, t, i) => `<button class="btn outlined sm" data-act="rx-demo" data-v="${v}" data-id="${esc(x.no)}"><i class="${i}"></i>${t}</button>`;
+    const btns = rec2 ? b('recall-ok', 'Confirm the recall', 'ri-check-line') + b('recall-no', 'Reply: already dispensed', 'ri-close-line')
+      : x.dispatch === 'pharmacy' && f && !f.accepted && rxStat(x) === 'Issued' ? b('accept', 'Pharmacy accepts the order', 'ri-check-double-line') : '';
+    return btns ? `<div class="rx-demo"><small><i class="ri-flask-line"></i>Prototype stand-in — the ${x.dispatch === 'stock' ? 'dispensary' : 'pharmacy'} replies here until its portal exists</small><div class="row g8 wrap">${btns}</div></div>` : ''; };
 
-  PT.tabs['medical-history'] = p => { const r = rec(p), tab = mhTab(r);
+  App.route('/patients/:id/prescriptions/:no', (id, no) => { const p = PT.pat(id);
+    if (!p) return '<section class="soon"><h1 class="soon-h1">Patient not found</h1><a class="btn outlined" href="#/patients">Back to Patients</a></section>';
+    if (!mayRxList()) return App.deniedPage(rxMeta);
+    rxSync(p); const r = rec(p), e = rxList(r).find(e => e.x.no === no); if (!e) return rxGone;
+    const { x, now, d } = e, f = rxFul(p, x), py = rxPayOf(p, x), D = CPD[x.dispatch], cancelled = rxStat(x) === 'Cancelled', rc = x.recall;
+    const banner = cancelled ? `<div class="pt-warn rx-ban red"><i class="ri-close-circle-line"></i><span><b>Cancelled</b>${esc(x.cancel ? x.cancel.reason : '')}<small>${esc(x.cancel ? x.cancel.by : '')} · ${rxDT(x.cancel && new Date(x.cancel.at))}</small></span></div>`
+      : rc && rc.status === 'Pending' ? `<div class="pt-warn rx-ban"><i class="ri-arrow-go-back-line"></i><span><b>Recall pending</b>Requested from ${esc(f ? f.who : 'the dispenser')} — ${esc(rc.reason)}<small>${esc(rc.by)} · ${rxDT(new Date(rc.at))}. It stays Issued until they reply.</small></span></div>`
+      : rc && rc.status === 'Declined' ? `<div class="pt-warn rx-ban"><i class="ri-information-line"></i><span><b>Recall declined</b>${esc(f ? f.who : 'The dispenser')} replied that it has already been dispensed, so this prescription stays Issued.</span></div>` : '';
+    const items = `<section class="card card-pad stack g12"><h2 class="pt-h"><i class="ri-capsule-line"></i>Medicines</h2><div class="mh-rx-view">${(x.items || []).map(it => `<div class="mh-rx-it"><b class="fw5">${esc(it.name)} ${esc(it.dose)} ${esc(it.unit)}</b><small>${esc(rxQty(it))}</small>${it.dirs ? `<p>${esc(it.dirs)}</p>` : ''}</div>`).join('')}</div></section>`;
+    const signed = `<section class="card card-pad stack g12"><h2 class="pt-h"><i class="ri-quill-pen-line"></i>Signed by</h2>${kv([['Prescriber', esc(x.by || '—')], ['Registration', esc(x.reg || '—')], ['Organisation', esc(x.org || '—')], ['Issued', rxDT(d)]])}
+      <div class="rx-sigbox"><i class="ri-quill-pen-line"></i><span><b>${x.sig === 'Drawn' ? 'Drawn signature on file' : esc(x.sig || 'Signature on file')}</b><small>Locked at issue — a signed prescription can’t be edited${cancelled ? '' : '. To change it, cancel it and write a new one'}.</small></span></div></section>`;
+    const fulBox = `<section class="card card-pad stack g12"><h2 class="pt-h"><i class="ri-truck-line"></i>How it reaches the patient</h2>
+      <div class="row g8 wrap">${D ? chip(D[0], 't-blue', D[1]) : ''}</div>
+      ${f ? kv([['Fulfilment', chip(f.t, f.tone, f.i)], [x.dispatch === 'stock' ? 'Dispensed by' : 'Pharmacy', esc(f.who)]]) : '<p class="caption" style="margin:0">Given to the patient — nothing is sent anywhere, so there is no fulfilment to follow.</p>'}
+      ${x.delivery ? `<b class="sub2">Delivery address</b>${kv([['Name', esc(x.delivery.name)], ['Phone', esc(x.delivery.phone)], ['Address', esc(addrLine(x.delivery))]])}<small class="caption">Confirmed ${rxDT(new Date(x.delivery.confirmedAt))} for this order. Later changes to the patient’s profile don’t change it.</small>` : ''}
+      ${rxCanRedirect(p, x) ? `<div class="rx-redir"><small>Not sent anywhere yet — it can still be sent on:</small><div class="row g8 wrap">${CPD_ON.pharmacy() ? `<button class="btn outlined sm" data-act="rx-redir" data-v="pharmacy" data-id="${esc(x.no)}"><i class="ri-store-2-line"></i>Send to pharmacy</button>` : ''}${CPD_ON.stock() ? `<button class="btn outlined sm" data-act="rx-redir" data-v="stock" data-id="${esc(x.no)}"><i class="ri-archive-2-line"></i>Dispense from our stock</button>` : ''}</div></div>` : ''}
+      ${f && f.row ? '<a class="btn text sm brand" href="#/inventory/dispensing" style="align-self:flex-start">Open in the dispensing queue<i class="ri-arrow-right-s-line"></i></a>' : ''}${rxDemo(p, x, f)}</section>`;
+    const payBox = `<section class="card card-pad stack g12"><h2 class="pt-h"><i class="ri-bank-card-line"></i>Payment</h2>
+      ${x.fee === 'Paid prescription' ? kv([['Fee', `£${Number(x.feeAmt || 0).toFixed(2)}`], ['Method', esc(x.pay || '—')], ['Status', chip(py.t, py.tone, py.i)]]) : '<p class="caption" style="margin:0">Free prescription — no charge was made.</p>'}
+      ${py.inv ? `<div class="row g8 wrap"><a class="btn outlined sm" href="#/billing/invoice/${py.inv.id}">Invoice ${py.inv.id}</a>${py.inv.status === 'Refund applicable' ? `<button class="btn primary sm" data-act="bl-new-refund" data-id="${py.inv.id}"><i class="ri-refund-2-line"></i>Start refund</button>` : ''}</div>` : ''}</section>`;
+    const tl = `<section class="card card-pad stack g12"><h2 class="pt-h"><i class="ri-time-line"></i>Timeline</h2><ol class="bl-tl">${rxLog(x).slice().reverse().map(([t, at, by]) => `<li><b>${esc(t)}</b><small>${rxDT(new Date(at))}${by ? ` · ${esc(by)}` : ''}</small></li>`).join('')}</ol></section>`;
+    return `<nav class="crumbs" aria-label="Breadcrumb"><a href="#/patients">Patients</a><span>/</span><a href="#/patients">Patients List</a><span>/</span><a href="#/patients/${p.id}">Patients Details</a><span>/</span><a href="#/patients/${p.id}/medical-history">Medical History</a><span>/</span><span class="cur">${esc(x.no)}</span></nav>
+      <div class="pt-bar"><button class="btn outlined sm pt-dark" data-act="rx-back"><i class="ri-arrow-left-s-line"></i>Go Back</button><h1 class="pt-h1">Prescription ${esc(x.no)}</h1>${rxStatChip(x)}${cancelled ? '' : rxState(now)}<span class="grow"></span>
+        ${rxCanCancel(p, x) ? `<button class="btn outlined" data-act="rx-cancel" data-id="${esc(x.no)}"><i class="ri-close-circle-line"></i>Cancel prescription</button>` : ''}</div>
+      <p class="caption" style="margin:-4px 0 0">${esc(PT.name(p))} · issued ${rxDT(d)}</p>
+      ${banner}<div class="dgrid3"><div class="stack g16">${items}${signed}</div><aside class="stack g16">${fulBox}${payBox}${tl}</aside></div>`; }, rxMeta);
+
+  /* Giving it to the patient creates no fulfilment, so until something is
+     sent it can still be sent: from here, after issue. */
+  const rxCanRedirect = (p, x) => mayRx() && rxStat(x) === 'Issued' && !x.recall && (!x.dispatch || x.dispatch === 'give') && (CPD_ON.pharmacy() || CPD_ON.stock());
+  const rxSendOn = (p, x, kind, ph, addr) => { const me = App.me().name, at = new Date().toISOString(); x.dispatch = kind;
+    if (kind === 'pharmacy') { x.pharmacy = ph; x.ful = { status: 'Sent' }; x.delivery = { ...addr, confirmedAt: at, confirmedBy: me }; rxNote(x, `Sent to ${ph}`); rxNote(x, 'Delivery address confirmed for this order'); }
+    else { delete x.ful; rxNote(x, 'Added to the dispensing queue'); }
+    (x.items || []).forEach(it => { const m = rec(p).meds.find(q => q.id === it.id); if (m) m.dispatch = kind; }); };
+  acts['rx-redir'] = el => { const p = cur(), x = rxFind(p, el.dataset.id); if (!x || !rxCanRedirect(p, x)) return;
+    if (el.dataset.v === 'stock') return App.dialog(modal('ri-archive-2-line', 'Dispense from our stock', `${esc(x.no)} goes into the practice dispensing queue.`,
+      '<p class="caption" style="margin:0">Staff will prepare the charge, dispense it and hand it over, deliver or post it. The prescription itself is not changed.</p>',
+      `<button class="btn outlined lg" data-act="close-modal">Cancel</button><button class="btn primary lg" data-act="rx-redir-go" data-v="stock" data-id="${esc(x.no)}">Add to the queue</button>`, 'green'), { width: 480 });
+    const a = addrOf(p);
+    App.dialog(modal('ri-store-2-line', 'Send to pharmacy', `${esc(x.no)} · confirm where it is going.`,
+      `${S('Pharmacy', 'pharm', pharmsOn().map(q => q.name), '', { req: true, ph: 'Choose a pharmacy' })}${kv([['Patient', esc(a.name)]])}${F('Phone number', 'ad_phone', a.phone, { req: true })}${F('Address', 'ad_line', a.line, { req: true })}<div class="g2">${F('City', 'ad_city', a.city, { req: true })}${F('Postcode', 'ad_pc', a.postcode, { req: true })}</div><p class="caption" style="margin:0">Changes apply to this order only — the patient’s profile isn’t edited.</p>`,
+      `<button class="btn outlined lg" data-act="close-modal">Cancel</button><button class="btn primary lg" data-act="rx-redir-go" data-v="pharmacy" data-id="${esc(x.no)}">Confirm address and send</button>`, 'green', 'md-dlg'), { width: 520 }); };
+  acts['rx-redir-go'] = el => { const p = cur(), x = rxFind(p, el.dataset.id); if (!x || !rxCanRedirect(p, x)) return;
+    if (el.dataset.v === 'stock') { rxSendOn(p, x, 'stock'); App.closeModal(); App.render(); return App.snack(`${x.no} added to the dispensing queue.`); }
+    const d = formData(); if (!needs(d, ['pharm', 'ad_phone', 'ad_line', 'ad_city', 'ad_pc'])) return;
+    rxSendOn(p, x, 'pharmacy', d.pharm, { name: PT.name(p), phone: d.ad_phone.trim(), line: d.ad_line.trim(), city: d.ad_city.trim(), postcode: d.ad_pc.trim().toUpperCase() });
+    App.closeModal(); App.render(); App.snack(`${x.no} sent to ${d.pharm}.`); };
+
+  acts['rx-back'] = () => { const p = cur(); rec(p).f.mhTab = 'rx'; App.go(`#/patients/${p.id}/medical-history`); };
+
+  /* ---------- cancelling ---------- */
+  acts['rx-cancel'] = el => { if (!App.can('Prescriptions', 'Cancel')) return App.snack('Your role cannot cancel prescriptions.', 'error');
+    const p = cur(), x = rxFind(p, el.dataset.id); if (!x || !rxCanCancel(p, x)) return;
+    const kind = rxCancelKind(p, x), f = rxFul(p, x), v = rxInv(p, x), paid = v && v.pays.length > 0, fee = `£${Number(x.feeAmt || 0).toFixed(2)}`;
+    const money = x.fee !== 'Paid prescription' ? '' : paid ? ` ${fee} has been paid, so the charge will show <b>Refund applicable</b> in Billing. Nothing is refunded automatically.` : ` The ${fee} charge in Billing will be cancelled.`;
+    const msg = kind === 'recall'
+      ? `<b>${esc(f.who)} has already taken this on.</b> A recall request is sent instead of cancelling straight away. The prescription stays Issued, marked Recall pending, until they confirm or reply that it has already been dispensed.${money}`
+      : `<b>This cancels it straight away</b> — nothing has been dispensed or accepted yet, and a cancelled prescription can’t be reopened. The medicines on the patient’s list are not changed.${money}`;
+    App.dialog(modal('ri-close-circle-line', kind === 'recall' ? 'Request a recall' : 'Cancel prescription', `${esc(x.no)} · ${(x.items || []).map(i => esc(i.name)).join(', ')}`,
+      `<div class="pt-warn"><i class="ri-error-warning-line"></i><span>${msg}</span></div>${F('Reason', 'reason', '', { req: true, area: true, max: 300, ph: 'Why is this prescription being cancelled? It is kept in the record.' })}`,
+      `<button class="btn outlined lg" data-act="close-modal">Keep it</button><button class="btn danger lg" data-act="rx-cancel-go" data-id="${esc(x.no)}">${kind === 'recall' ? 'Request recall' : 'Cancel prescription'}</button>`, 'red'), { width: 520 }); };
+  acts['rx-cancel-go'] = el => { const d = formData(); if (!needs(d, ['reason'])) return;
+    const p = cur(), x = rxFind(p, el.dataset.id); if (!x || !rxCanCancel(p, x)) return;
+    const why = d.reason.trim(), me = App.me().name, f = rxFul(p, x);
+    if (rxCancelKind(p, x) === 'recall') { x.recall = { status: 'Pending', reason: why, by: me, at: new Date().toISOString() };
+      rxNote(x, `Recall requested from ${f.who} — ${why}`); App.closeModal(); App.render(); return App.snack(`Recall requested.\n${x.no} stays Issued until ${f.who} replies.`); }
+    const k = rxFinishCancel(p, x, why, me); App.closeModal(); App.render();
+    App.snack(`${x.no} cancelled.${k === 'refund' ? '\nThe charge now shows Refund applicable in Billing.' : k === 'charge' ? '\nThe charge in Billing was cancelled.' : ''}`); };
+  acts['rx-demo'] = el => { const p = cur(), x = rxFind(p, el.dataset.id); if (!x) return; const f = rxFul(p, x), who = f ? f.who : 'The dispenser', v = el.dataset.v;
+    if (v === 'accept') { x.ful = Object.assign(x.ful || {}, { status: 'Accepted' }); rxNote(x, `${who} accepted the order`, who); }
+    if (v === 'recall-no' && x.recall) { x.recall.status = 'Declined'; rxNote(x, `${who} replied that it has already been dispensed — the recall can’t be completed`, who); }
+    if (v === 'recall-ok' && x.recall) { x.recall.status = 'Confirmed'; rxNote(x, `${who} confirmed the recall`, who); rxFinishCancel(p, x, x.recall.reason, x.recall.by); }
+    App.render(); };
+
+  PT.tabs['medical-history'] = p => { rxSync(p); const r = rec(p), tab = mhTab(r);
     const n = { cond: r.cond.filter(c => c.status === 'Active').length, meds: r.meds.filter(m => m.status === 'Active').length, alg: r.alg.length, rx: rxScripts(r).length };
     return title('Medical History') + `<div class="stack g16">
       <div class="card pt-segcard mh-bar">${seg('mh-tab', mhTabs().map(([k, t, i]) => [k, `${t} (${n[k]})`, i]), tab)}</div>
-      ${tab === 'cond' ? condBox(r) : tab === 'alg' ? algBox(r) : tab === 'rx' ? rxBox(r) : medsBox(r)}</div>`; };
+      ${tab === 'cond' ? condBox(r) : tab === 'alg' ? algBox(r) : tab === 'rx' ? rxBox(p, r) : medsBox(r)}</div>`; };
   /* the page is rebuilt on every change, and a shorter one clamps the scroll —
      so where the reader was is put back by hand */
   const mhGo = (k, v) => { const r = rec(cur()), y = scrollY; r.f[k] = v; App.render(); scrollTo(0, y); };
@@ -398,10 +534,26 @@
      on the developed app's Create prescription dialog. */
   const CPD = {
     give: ['Give to patient', 'ri-user-shared-2-line', 'Signed prescription for collection from any pharmacy.'],
-    pharmacy: ['Home delivery', 'ri-store-2-line', 'A linked pharmacy receives the prescription and delivers it.'],
+    pharmacy: ['Send to pharmacy', 'ri-store-2-line', 'A linked pharmacy dispenses it and delivers to the patient.'],
     stock: ['Dispense from practice stock', 'ri-archive-2-line', 'Staff dispense from inventory for handover, delivery or post.']
   };
   const CPUNIT = App.UNITS;
+
+  /* The pharmacies this business can send to. The Pharmacies page (invite, revoke)
+     will own this list; until it exists it is seeded, so the picker has real
+     choices and an invited or revoked pharmacy is shown to be left out of it. */
+  const PHARM = App.S.pharmacies = App.S.pharmacies || [
+    { id: 'ph1', name: 'Boots Pharmacy — Leicester', ods: 'FA123', gphc: '1032456', phone: '0116 254 0001', addr: '12 Gallowtree Gate, Leicester LE1 5AD', status: 'Active' },
+    { id: 'ph2', name: 'Highfields Community Pharmacy', ods: 'FQ872', gphc: '1045123', phone: '0116 266 5522', addr: '88 Melbourne Road, Leicester LE2 0DS', status: 'Active' },
+    { id: 'ph3', name: 'Oadby Late Night Pharmacy', ods: 'FJ440', gphc: '1051987', phone: '0116 271 8800', addr: '4 The Parade, Oadby LE2 5BF', status: 'Invited' },
+    { id: 'ph4', name: 'Westcotes Pharmacy', ods: 'FM019', gphc: '1022744', phone: '0116 255 1234', addr: '210 Narborough Road, Leicester LE3 0PE', status: 'Revoked' }];
+  const pharmsOn = () => (App.S.pharmacies || PHARM).filter(x => x.status === 'Active');
+  /* An option nobody can use is not shown: no active pharmacy means no way to
+     send one, and with Inventory switched off there is no stock to dispense. */
+  const CPD_ON = { give: () => true, pharmacy: () => pharmsOn().length > 0, stock: () => !!App.IV && !App.S.inventoryOff };
+  const cpAvail = () => Object.keys(CPD).filter(k => CPD_ON[k]());
+  const addrOf = p => ({ name: PT.name(p), phone: p.phone || '', line: p.addr || '', city: p.city || '', postcode: p.postcode || '' });
+  const addrLine = a => [a.line, a.city, a.postcode].filter(Boolean).join(', ');
   let cp = null;
   const PAYM = () => PT.payMethods('rx');
 
@@ -425,6 +577,7 @@
     Object.keys(cp.sel).forEach(id => { if (d['q_' + id] === undefined && d['dir_' + id] === undefined) return;
       cp.sel[id] = { qty: d['q_' + id] ?? '', unit: d['u_' + id] || CPUNIT[0], dur: d['dur_' + id] ?? '', dirs: d['dir_' + id] ?? '' }; });
     if (d.dispatch) cp.dispatch = d.dispatch;
+    if (d.pharm !== undefined) cp.pharm = d.pharm;
     cp.feeAmt = d.feeAmt ?? cp.feeAmt; cp.reg = d.reg ?? cp.reg;
     if (App.$('#cp-attest')) cp.attest = !!d.attest;
     ['receipt', 'receivedBy', 'transferDate', 'txnRef'].forEach(k => { if (d[k] !== undefined) cp.pay[k] = d[k]; }); };
@@ -461,7 +614,10 @@
   /* The right column works the same way as the left: taking the payment and
      signing for it are the last two things that happen, and only one of them is
      open at a time, so the dialog never has to grow a scrollbar. */
-  const cpPaid = () => +cp.feeAmt > 0;
+  /* The prescription fee is for giving it to the patient. A pharmacy quotes its
+     own price when it accepts, and the dispensary prepares the charge when it
+     dispenses, so neither is priced here. */
+  const cpPaid = () => cp.dispatch === 'give' && +cp.feeAmt > 0;
   /* How far the prescription has got, for the rail across the top. A step is
      only behind you once the one before it is: every medicine priced and
      written up, then the way it reaches them settled and moved past, then
@@ -471,7 +627,8 @@
      worked on it — on the step itself, or on one after it. Settling how the
      medicine reaches them is a choice with an answer already in it, so it is
      the touch that counts, not a field going from empty to full. */
-  const cpOk2 = ids => cpOk1(ids) && (cp.seen2 || cp.seen3) && (!cpPaid() || PAYM()[cp.method].need.every(k => String(cp.pay[k] || '').trim()));
+  const cpOk2 = ids => cpOk1(ids) && (cp.seen2 || cp.seen3) && (!cpPaid() || PAYM()[cp.method].need.every(k => String(cp.pay[k] || '').trim()))
+    && (cp.dispatch !== 'pharmacy' || (!!cp.pharm && !!cp.addr));
   const cpSigned = () => cp.sigMode === 'draw' ? cp.strokes.length > 0 : !!cp.sigFile;
   const cpOk3 = ids => cpOk2(ids) && !!String(cp.reg).trim() && cp.attest && cpSigned();
   const cpAt = ids => cpOk3(ids) ? 4 : cpOk2(ids) ? 3 : cpOk1(ids) ? 2 : 1;
@@ -490,9 +647,10 @@
 
   const cpModal = () => { const p = cur(), r = rec(p), me = App.me().name, org = App.biz ? App.biz().name : 'LeafEase';
     const meds = medList(r), ids = Object.keys(cp.sel), n = ids.length, paid = cpPaid();
+    if (!cpAvail().includes(cp.dispatch)) cp.dispatch = 'give';
     cp.drawnPaid = paid; /* what is on screen, so the fee knows when it has to redraw */
     const dups = ids.filter(id => { const m = r.meds.find(x => x.id === id); return m && cpOnRx(r, m); }).length;
-    const sum = [`${n || 'No'} medicine${n === 1 ? '' : 's'} selected`, CPD[cp.dispatch][0], paid ? `£${(+cp.feeAmt).toFixed(2)} · ${PAYM()[cp.method].t}` : 'No charge', ...(dups ? [`${dups} already on a current prescription`] : [])].join(' · ');
+    const sum = [`${n || 'No'} medicine${n === 1 ? '' : 's'} selected`, cp.dispatch === 'pharmacy' && cp.pharm ? `Send to ${cp.pharm}` : CPD[cp.dispatch][0], ...(cp.dispatch === 'give' ? [paid ? `£${(+cp.feeAmt).toFixed(2)} · ${PAYM()[cp.method].t}` : 'No charge'] : []), ...(dups ? [`${dups} already on a current prescription`] : [])].join(' · ');
     App.dialog(`<div class="cp-dlg">
       <div class="dlg-head cp-head">
         <span class="pt-dlg-ic green cp-ic"><i class="ri-quill-pen-line"></i></span>
@@ -515,12 +673,20 @@
               meds.length < 3 ? '<button type="button" class="cp-addtile" data-act="cp-add-med"><i class="ri-add-line"></i>Add another medicine</button>' : ''}</div>
           </section>
           <section class="cp-card cp-reach">
-            <div class="cp-card-h">${cpStep(2, 'How it reaches them', 'And what, if anything, is charged.')}</div>
-            <div class="cp-opts">${Object.entries(CPD).map(([k, [t, i, d]]) => `<label class="cp-opt ${k === cp.dispatch ? 'on' : ''}"><input type="radio" name="dispatch" value="${k}" data-ch="cp-dispatch" ${k === cp.dispatch ? 'checked' : ''}><span class="cp-opt-ic"><i class="${i}"></i></span><span class="cp-opt-t"><b>${t}</b><small>${d}</small></span></label>`).join('')}</div>
-            <div class="cp-fee">
+            <div class="cp-card-h">${cpStep(2, 'How it reaches them', 'Choose how the patient gets it.')}</div>
+            <div class="cp-opts">${cpAvail().map(k => [k, ...CPD[k]]).map(([k, t, i, d]) => `<label class="cp-opt ${k === cp.dispatch ? 'on' : ''}"><input type="radio" name="dispatch" value="${k}" data-ch="cp-dispatch" ${k === cp.dispatch ? 'checked' : ''}><span class="cp-opt-ic"><i class="${i}"></i></span><span class="cp-opt-t"><b>${t}</b><small>${d}</small></span></label>`).join('')}</div>
+            ${cp.dispatch === 'give' ? `<div class="cp-fee">
               <span class="cp-fee-t"><b>Prescription fee</b><small>Leave at 0 for no charge.</small></span>
               ${App.field('', `<span class="adorn">£</span><input id="ft-feeAmt" name="feeAmt" type="number" step="0.01" value="${esc(cp.feeAmt)}" placeholder="0.00" data-in="cp-amt" data-ch="cp-feeamt" aria-label="Prescription fee in pounds">`, { cls: 'cp-fee-f' })}
-            </div>
+            </div>` : ''}
+            ${cp.dispatch === 'pharmacy' ? `<div class="cp-ph">
+              ${S('Pharmacy', 'pharm', pharmsOn().map(x => x.name), cp.pharm, { req: true, ph: 'Choose a pharmacy', attrs: 'data-ch="cp-pharm"' })}
+              <div class="cp-addr ${cp.addr ? 'ok' : ''}" id="cp-addr">
+                <i class="${cp.addr ? 'ri-checkbox-circle-line' : 'ri-map-pin-line'}"></i>
+                <span class="cp-addr-t"><b>${cp.addr ? 'Delivery address confirmed' : 'Delivery address'}</b><small>${esc(addrLine(cp.addr || addrOf(p)))}${cp.addr ? '' : ' — check it before sending'}</small></span>
+                <button type="button" class="btn outlined sm" data-act="cp-addr" ${cp.pharm ? '' : 'disabled'}>${cp.addr ? 'Edit' : 'Confirm address'}</button>
+              </div>
+            </div>` : ''}
             ${paid ? `<div class="cp-paybox">${PT.payTabs(PAYM(), cp.method, 'cp-pay-m')}${PAYM()[cp.method].body({ ...cp.pay, price: +cp.feeAmt || 0 })}</div>` : ''}
           </section>
           <section class="cp-card cp-sign">
@@ -576,7 +742,7 @@
     ['pointerup', 'pointercancel'].forEach(k => c.addEventListener(k, () => { if (st) { cp.seen3 = true; cpRailSync(); } st = null; })); };
 
   acts['cp-open'] = () => { if (!mayRx()) return rxDeny(); const r = rec(cur()), picked = cpSelIds(r);
-    cp = { sel: {}, open: null, listH: 0, seen2: false, seen3: false, dispatch: 'give', feeAmt: '', method: 'link', pay: {}, reg: '', attest: false, sigMode: 'draw', strokes: [], sigFile: '' };
+    cp = { sel: {}, open: null, listH: 0, seen2: false, seen3: false, pharm: '', addr: null, dispatch: 'give', feeAmt: '', method: 'link', pay: {}, reg: '', attest: false, sigMode: 'draw', strokes: [], sigFile: '' };
     picked.forEach(id => { cp.sel[id] = { qty: '', unit: CPUNIT[0], dur: '', dirs: '' }; });
     cp.open = picked[0] || null;
     cpModal(); };
@@ -596,6 +762,19 @@
     cpSettle(); cpModal(); };
 
   chs['cp-dispatch'] = el => { cpRead(); cp.dispatch = el.value; cp.seen2 = true; cpModal(); };
+  chs['cp-pharm'] = () => { cpRead(); cp.seen2 = true; cpModal(); };
+  /* The address is the patient's own, shown for this order only: it is checked
+     and, if wrong, corrected here without the profile being touched, and what is
+     confirmed is kept on the prescription as it was when it was sent. */
+  acts['cp-addr'] = () => { cpRead(); const p = cur(), a = cp.addr || addrOf(p), ph = pharmsOn().find(x => x.name === cp.pharm);
+    if (!ph) return App.snack('Choose a pharmacy first.', 'error');
+    App.dialog(modal('ri-map-pin-line', 'Delivery address', `${esc(ph.name)} delivers to this address. Changes apply to this order only — the patient’s profile isn’t edited.`,
+      `${kv([['Patient', esc(a.name)]])}${F('Phone number', 'ad_phone', a.phone, { req: true })}${F('Address', 'ad_line', a.line, { req: true })}<div class="g2">${F('City', 'ad_city', a.city, { req: true })}${F('Postcode', 'ad_pc', a.postcode, { req: true })}</div>`,
+      `<button class="btn outlined lg" data-act="close-modal">Cancel</button><button class="btn primary lg" data-act="cp-addr-go">Confirm address</button>`, 'green', 'md-dlg'), { width: 520 });
+    cpPend = App.$('.scrim'); };
+  acts['cp-addr-go'] = () => { const d = formData(); if (!needs(d, ['ad_phone', 'ad_line', 'ad_city', 'ad_pc'])) return;
+    cp.addr = { name: PT.name(cur()), phone: d.ad_phone.trim(), line: d.ad_line.trim(), city: d.ad_city.trim(), postcode: d.ad_pc.trim().toUpperCase() };
+    cpPend = null; cp.seen2 = true; cpModal(); };
   /* crossing zero brings the payment step in or takes it away, so the fee
      settles on change rather than on every keystroke; it compares against what
      was drawn, not against cp, which the form's own listener has already read */
@@ -674,6 +853,10 @@
     if (cpPaid()) { const miss = PAYM()[cp.method].need.filter(k => !String(cp.pay[k] || '').trim());
       if (miss.length) return mark(miss); }
 
+    if (cp.dispatch === 'pharmacy') {
+      if (!cp.pharm) return mark(['pharm']);
+      if (!cp.addr) { App.$('#cp-addr')?.classList.add('err'); return App.snack('Confirm the delivery address before signing.', 'error'); } }
+
     if (!String(cp.reg).trim()) return mark(['reg']);
     App.$$('#pt-form .field').forEach(f => { f.classList.remove('err'); f.querySelector('[name]')?.removeAttribute('aria-invalid'); });
     const at = App.$('#cp-attest'); at.classList.toggle('err', !cp.attest);
@@ -683,20 +866,26 @@
     if (!signed) return App.snack(cp.sigMode === 'draw' ? 'Draw your signature before issuing.' : 'Upload a signature image before issuing.', 'error');
 
     const me = App.me().name, org = App.biz ? App.biz().name : 'LeafEase';
-    const paid = +cp.feeAmt > 0, P = PAYM()[cp.method];
+    const paid = cpPaid(), P = PAYM()[cp.method];
     const issued = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
     const no = 'RX-' + String(1000 + ((r.scripts || []).length + 1)).slice(-4);
     const items = ids.map(id => { const m = r.meds.find(x => x.id === id), v = cp.sel[id];
       return { id, name: m.name, dose: m.dose, unit: m.unit, qty: +v.qty, qtyUnit: v.unit, dur: v.dur, dirs: v.dirs }; });
-    (r.scripts = r.scripts || []).unshift({ no, at: issued, issuedAt: new Date().toISOString(), by: me, org, reg: cp.reg, dispatch: cp.dispatch,
+    const nowIso = new Date().toISOString();
+    (r.scripts = r.scripts || []).unshift({ no, at: issued, issuedAt: nowIso, status: 'Issued', ...(cp.dispatch === 'pharmacy' ? { ful: { status: 'Sent' }, pharmacy: cp.pharm, delivery: { ...cp.addr, confirmedAt: nowIso, confirmedBy: me } } : {}),
+      log: [['Prescription issued and signed', nowIso, me], [cp.dispatch === 'give' ? 'Given to the patient — no fulfilment' : cp.dispatch === 'pharmacy' ? `Sent to ${cp.pharm}` : 'Added to the dispensing queue', nowIso, me],
+        ...(cp.dispatch === 'pharmacy' ? [['Delivery address confirmed for this order', nowIso, me]] : [])], by: me, org, reg: cp.reg, dispatch: cp.dispatch,
       fee: paid ? 'Paid prescription' : 'Free prescription', feeAmt: paid ? +cp.feeAmt : 0, pay: paid ? P.t : '', payStatus: paid ? P.status : '', ...(paid ? cp.pay : {}),
       sig: cp.sigMode === 'draw' ? 'Drawn' : cp.sigFile, items });
     items.forEach(it => { const m = r.meds.find(x => x.id === it.id);
       Object.assign(m, { prescribed: true, prescriber: me, org, issued, dispatch: cp.dispatch, script: no,
         fee: paid ? 'Paid prescription' : 'Free prescription', feeAmt: paid ? +cp.feeAmt : 0, pay: paid ? P.t : '', payStatus: paid ? P.status : '' }); });
-    const disp = CPD[cp.dispatch][0];
+    const disp = cp.dispatch === 'pharmacy' ? `Sent to ${cp.pharm}` : CPD[cp.dispatch][0];
     const paidLine = paid ? ` · £${(+cp.feeAmt).toFixed(2)} ${P.status === 'Paid' ? 'received by ' + P.t.toLowerCase() : 'awaiting payment'}` : '';
-    r.f.rxSel = []; cp = null; App.closeModal(); App.render();
+    r.f.rxSel = []; cp = null; App.closeModal();
+    const pt = cur(); rxEnsureInv(pt, r.scripts[0]);
+    /* the prescription's own page, with its dispatch status, is where it lands */
+    if (mayRxList()) App.go(`#/patients/${pt.id}/prescriptions/${no}`); else App.render();
     App.snack(`Prescription ${no} issued\n${items.length} ${items.length === 1 ? 'medicine' : 'medicines'} signed by ${me} · ${disp}${paidLine}.`); };
 
   /* ticking rows in the table is what fills the Create prescription button */
